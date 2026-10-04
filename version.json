@@ -1,6 +1,6 @@
 {
-  "versionCode": 3,
-  "versionName": "1.0.2",
-  "changelog": "✨ Glassmorphic UI/UX Update: Frosted glass translucent cards, glowing ambient lighting, glass navigation bars, and complete removal of dummy progress.",
+  "versionCode": 4,
+  "versionName": "1.0.3",
+  "changelog": "🚀 NOVA Major Productization Release: Complete multi-user architecture with Supabase Auth (Sign up, Login, Password reset, Session persistence), 7-step interactive Onboarding, Personal Context Engine, Row Level Security (RLS) data isolation, and adaptive personalized Dashboard.",
   "downloadUrl": "https://raw.githubusercontent.com/rg-ui/focus-os-/main/FocusOS-v1.0.apk"
 }

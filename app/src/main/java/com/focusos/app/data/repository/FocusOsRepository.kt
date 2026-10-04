@@ -4,49 +4,61 @@ import android.content.Context
 import android.content.SharedPreferences
 import com.focusos.app.data.models.*
 import com.focusos.app.data.supabase.SupabaseClient
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.launch
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 
 class FocusOsRepository(private val context: Context) {
 
     private val prefs: SharedPreferences =
-        context.getSharedPreferences("focus_os_prefs", Context.MODE_PRIVATE)
+        context.getSharedPreferences("nova_os_prefs", Context.MODE_PRIVATE)
 
     private val json = Json {
         ignoreUnknownKeys = true
         encodeDefaults = true
     }
 
+    private val repoScope = CoroutineScope(Dispatchers.IO)
+
     // Default Supabase configuration
     val defaultSupabaseUrl = "https://yvhzfrhtvwsnmzcruyyk.supabase.co"
     val defaultSupabaseAnonKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inl2aHpmcmh0dndzbm16Y3J1eXlrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTExMTY1MTksImV4cCI6MjEwNjY5MjUxOX0.GmDiVkrVt5iYsEe7dOkaC2Wt2Z4OxJ0OxTF_YR-OduA"
 
-    // Reactive StateFlows
-    private val _userProfile = MutableStateFlow(loadInitialProfile())
+    val supabaseClient = SupabaseClient(defaultSupabaseUrl, defaultSupabaseAnonKey)
+
+    // ----------------- Auth State -----------------
+    private val _authSession = MutableStateFlow(loadStoredSession())
+    val authSession: StateFlow<AuthSession> = _authSession.asStateFlow()
+
+    // ----------------- User Profile & Context -----------------
+    private val _userProfile = MutableStateFlow(loadStoredProfile())
     val userProfile: StateFlow<UserProfile> = _userProfile.asStateFlow()
 
-    private val _appSettings = MutableStateFlow(loadInitialSettings())
+    private val _appSettings = MutableStateFlow(loadStoredSettings())
     val appSettings: StateFlow<AppSettings> = _appSettings.asStateFlow()
 
-    private val _degrees = MutableStateFlow(loadInitialDegrees())
+    // ----------------- Academic & Career Reactive Flows -----------------
+    private val _degrees = MutableStateFlow(loadStoredDegrees())
     val degrees: StateFlow<List<DegreeInfo>> = _degrees.asStateFlow()
 
-    private val _subjects = MutableStateFlow(loadInitialSubjects())
+    private val _subjects = MutableStateFlow(loadStoredSubjects())
     val subjects: StateFlow<List<Subject>> = _subjects.asStateFlow()
 
-    private val _classes = MutableStateFlow(loadInitialClasses())
+    private val _classes = MutableStateFlow(loadStoredClasses())
     val classes: StateFlow<List<ClassSession>> = _classes.asStateFlow()
 
-    private val _missedRecoveries = MutableStateFlow(loadInitialMissedRecoveries())
+    private val _missedRecoveries = MutableStateFlow<List<MissedClassRecovery>>(emptyList())
     val missedRecoveries: StateFlow<List<MissedClassRecovery>> = _missedRecoveries.asStateFlow()
 
-    private val _tasks = MutableStateFlow(loadInitialTasks())
+    private val _tasks = MutableStateFlow(loadStoredTasks())
     val tasks: StateFlow<List<TaskItem>> = _tasks.asStateFlow()
 
-    private val _focusSessions = MutableStateFlow(loadInitialFocusSessions())
+    private val _focusSessions = MutableStateFlow<List<FocusSession>>(emptyList())
     val focusSessions: StateFlow<List<FocusSession>> = _focusSessions.asStateFlow()
 
     private val _dsRoadmap = MutableStateFlow(loadInitialRoadmap())
@@ -55,22 +67,22 @@ class FocusOsRepository(private val context: Context) {
     private val _portfolioProjects = MutableStateFlow(loadInitialProjects())
     val portfolioProjects: StateFlow<List<PortfolioProject>> = _portfolioProjects.asStateFlow()
 
-    private val _internships = MutableStateFlow(loadInitialInternships())
+    private val _internships = MutableStateFlow<List<InternshipApplication>>(emptyList())
     val internships: StateFlow<List<InternshipApplication>> = _internships.asStateFlow()
 
     private val _examTracks = MutableStateFlow(loadInitialExams())
     val examTracks: StateFlow<List<ExamTrack>> = _examTracks.asStateFlow()
 
-    private val _healthLog = MutableStateFlow(loadInitialHealthLog())
+    private val _healthLog = MutableStateFlow(HealthLog(date = "Today", gymCompleted = false, workoutDurationMinutes = 0, steps = 0, sleepHours = 0.0, waterGlasses = 0))
     val healthLog: StateFlow<HealthLog> = _healthLog.asStateFlow()
 
     private val _habits = MutableStateFlow(loadInitialHabits())
     val habits: StateFlow<List<HabitItem>> = _habits.asStateFlow()
 
-    private val _distractionLog = MutableStateFlow(loadInitialDistractionLog())
+    private val _distractionLog = MutableStateFlow(DistractionLog(date = "Today", instagramMinutes = 0, youtubeMinutes = 0, gamingMinutes = 0, otherMinutes = 0, yesterdayTotalMinutes = 0))
     val distractionLog: StateFlow<DistractionLog> = _distractionLog.asStateFlow()
 
-    private val _journal = MutableStateFlow(loadInitialJournal())
+    private val _journal = MutableStateFlow(DailyJournal(id = "j_today", date = "Today", whatWentWell = "", whatWentWrong = "", whatToImproveTomorrow = ""))
     val journal: StateFlow<DailyJournal> = _journal.asStateFlow()
 
     private val _chatMessages = MutableStateFlow(loadInitialChatMessages())
@@ -79,44 +91,154 @@ class FocusOsRepository(private val context: Context) {
     private val _morningBrief = MutableStateFlow(MorningBrief())
     val morningBrief: StateFlow<MorningBrief> = _morningBrief.asStateFlow()
 
-    // ----------------- Profile / Settings Operations -----------------
+    init {
+        // Configure Supabase client with stored token if available
+        val session = _authSession.value
+        if (session.isLoggedIn && session.accessToken.isNotBlank()) {
+            supabaseClient.setAccessToken(session.accessToken)
+        }
+    }
+
+    // ----------------- Authentication API -----------------
+    suspend fun signUp(name: String, email: String, pass: String): Result<AuthSession> {
+        val result = supabaseClient.signUp(email = email.trim(), password = pass, name = name.trim())
+        if (result.isSuccess) {
+            val session = result.getOrThrow()
+            saveSession(session)
+            val newProfile = UserProfile(
+                id = session.userId,
+                name = name.trim(),
+                email = email.trim(),
+                onboardingCompleted = false
+            )
+            saveProfile(newProfile)
+            _chatMessages.value = loadInitialChatMessages(name.trim())
+        }
+        return result
+    }
+
+    suspend fun signIn(email: String, pass: String): Result<AuthSession> {
+        val result = supabaseClient.signIn(email = email.trim(), password = pass)
+        if (result.isSuccess) {
+            val session = result.getOrThrow()
+            saveSession(session)
+
+            // Try fetching profile from Supabase
+            repoScope.launch {
+                val remoteProfileRes = supabaseClient.fetchProfileFromSupabase(session.userId)
+                if (remoteProfileRes.isSuccess && remoteProfileRes.getOrNull() != null) {
+                    val remoteProfile = remoteProfileRes.getOrNull()!!
+                    saveProfile(remoteProfile)
+                } else {
+                    val currentProf = _userProfile.value
+                    if (currentProf.id != session.userId) {
+                        saveProfile(currentProf.copy(id = session.userId, name = session.name, email = session.email))
+                    }
+                }
+            }
+            _chatMessages.value = loadInitialChatMessages(session.name)
+        }
+        return result
+    }
+
+    suspend fun resetPassword(email: String): Result<Boolean> {
+        return supabaseClient.resetPassword(email.trim())
+    }
+
+    fun signOut() {
+        supabaseClient.setAccessToken("")
+        val emptySession = AuthSession()
+        saveSession(emptySession)
+        val emptyProfile = UserProfile()
+        saveProfile(emptyProfile)
+        _degrees.value = emptyList()
+        _tasks.value = emptyList()
+        _classes.value = emptyList()
+        _missedRecoveries.value = emptyList()
+        _focusSessions.value = emptyList()
+        _internships.value = emptyList()
+        _chatMessages.value = loadInitialChatMessages()
+    }
+
+    // ----------------- Onboarding & Personal Context Completion -----------------
+    fun completeOnboarding(
+        updatedProfile: UserProfile,
+        userDegrees: List<DegreeInfo>,
+        userGoals: List<String>
+    ) {
+        val finalProfile = updatedProfile.copy(
+            onboardingCompleted = true,
+            goals = userGoals
+        )
+        saveProfile(finalProfile)
+
+        if (userDegrees.isNotEmpty()) {
+            _degrees.value = userDegrees
+            saveDegrees(userDegrees)
+        }
+
+        // Generate baseline subjects if academic priority is selected
+        if (userDegrees.isNotEmpty() && _subjects.value.isEmpty()) {
+            val generatedSubjects = generateInitialSubjectsForDegrees(userDegrees)
+            _subjects.value = generatedSubjects
+            saveSubjects(generatedSubjects)
+        }
+
+        // Sync with Supabase cloud
+        repoScope.launch {
+            supabaseClient.saveProfileToSupabase(finalProfile)
+        }
+
+        _chatMessages.value = loadInitialChatMessages(finalProfile.name)
+    }
+
     fun updateProfile(profile: UserProfile) {
-        _userProfile.value = profile
+        saveProfile(profile)
         recalculateTodayScore()
+        repoScope.launch {
+            supabaseClient.saveProfileToSupabase(profile)
+        }
     }
 
     fun updateSettings(settings: AppSettings) {
         _appSettings.value = settings
-    }
-
-    fun completeOnboarding() {
-        _userProfile.value = _userProfile.value.copy(onboardingCompleted = true)
+        prefs.edit().putString("app_settings_json", json.encodeToString(settings)).apply()
+        if (settings.supabaseUrl.isNotBlank() && settings.supabaseAnonKey.isNotBlank()) {
+            supabaseClient.updateConfig(settings.supabaseUrl, settings.supabaseAnonKey)
+        }
     }
 
     // ----------------- Academic Operations -----------------
+    fun addDegree(degree: DegreeInfo) {
+        val updated = _degrees.value + degree
+        _degrees.value = updated
+        saveDegrees(updated)
+    }
+
     fun updateDegree(type: DegreeType, currentCgpa: Double, targetCgpa: Double, completedCredits: Int) {
         val updated = _degrees.value.map {
             if (it.type == type) {
-                it.copy(
-                    currentCgpa = currentCgpa,
-                    targetCgpa = targetCgpa,
-                    completedCredits = completedCredits
-                )
+                it.copy(currentCgpa = currentCgpa, targetCgpa = targetCgpa, completedCredits = completedCredits)
             } else it
         }
         _degrees.value = updated
+        saveDegrees(updated)
+    }
+
+    fun addSubject(subject: Subject) {
+        val updated = _subjects.value + subject
+        _subjects.value = updated
+        saveSubjects(updated)
     }
 
     fun updateSubjectStatus(subjectId: String, newStatus: SubjectStatus, newScore: Double? = null) {
         val updated = _subjects.value.map {
             if (it.id == subjectId) {
-                it.copy(
-                    status = newStatus,
-                    currentScore = newScore ?: it.currentScore
-                )
+                it.copy(status = newStatus, currentScore = newScore ?: it.currentScore)
             } else it
         }
         _subjects.value = updated
+        saveSubjects(updated)
         recalculateTodayScore()
     }
 
@@ -137,18 +259,6 @@ class FocusOsRepository(private val context: Context) {
                 missedDate = session.date
             )
             _missedRecoveries.value = listOf(recovery) + _missedRecoveries.value
-
-            val catchUpTask = TaskItem(
-                id = "task_catchup_${System.currentTimeMillis()}",
-                title = "Catch up on ${session.subjectName}: ${session.topic}",
-                category = if (session.degreeType == DegreeType.IITM) TaskCategory.IITM else TaskCategory.ITEP,
-                priority = TaskPriority.HIGH,
-                estimatedMinutes = 45,
-                deadline = "Next 48h",
-                isCatchUpTask = true,
-                relatedSubject = session.subjectName
-            )
-            _tasks.value = listOf(catchUpTask) + _tasks.value
         }
     }
 
@@ -172,7 +282,9 @@ class FocusOsRepository(private val context: Context) {
 
     // ----------------- Tasks Operations -----------------
     fun addTask(task: TaskItem) {
-        _tasks.value = listOf(task) + _tasks.value
+        val updated = listOf(task) + _tasks.value
+        _tasks.value = updated
+        saveTasks(updated)
         recalculateTodayScore()
     }
 
@@ -181,11 +293,14 @@ class FocusOsRepository(private val context: Context) {
             if (it.id == taskId) it.copy(isCompleted = !it.isCompleted) else it
         }
         _tasks.value = updated
+        saveTasks(updated)
         recalculateTodayScore()
     }
 
     fun deleteTask(taskId: String) {
-        _tasks.value = _tasks.value.filter { it.id != taskId }
+        val updated = _tasks.value.filter { it.id != taskId }
+        _tasks.value = updated
+        saveTasks(updated)
         recalculateTodayScore()
     }
 
@@ -194,13 +309,14 @@ class FocusOsRepository(private val context: Context) {
         _focusSessions.value = listOf(session) + _focusSessions.value
         val addedHours = session.durationMinutes / 60.0
         val currentProfile = _userProfile.value
-        _userProfile.value = currentProfile.copy(
+        val updated = currentProfile.copy(
             totalFocusedHoursThisWeek = currentProfile.totalFocusedHoursThisWeek + addedHours
         )
+        saveProfile(updated)
         recalculateTodayScore()
     }
 
-    // ----------------- Career / Roadmap Operations -----------------
+    // ----------------- Career / Projects / Internships -----------------
     fun updateRoadmapStageProgress(stageNumber: Int, newProgress: Int, lessonsDone: Int, problemsDone: Int) {
         val updated = _dsRoadmap.value.map {
             if (it.stageNumber == stageNumber) {
@@ -245,7 +361,7 @@ class FocusOsRepository(private val context: Context) {
         _internships.value = updated
     }
 
-    // ----------------- Health & Habit Operations -----------------
+    // ----------------- Health, Habits & Distraction Operations -----------------
     fun updateHealthLog(log: HealthLog) {
         _healthLog.value = log
         recalculateTodayScore()
@@ -277,21 +393,13 @@ class FocusOsRepository(private val context: Context) {
         recalculateTodayScore()
     }
 
-    // ----------------- Journal Operations -----------------
     fun updateJournal(journal: DailyJournal) {
         _journal.value = journal
     }
 
     // ----------------- AI Chat Operations -----------------
     fun clearChatHistory() {
-        _chatMessages.value = listOf(
-            ChatMessage(
-                id = "m_0",
-                sender = MessageSender.AI,
-                text = "Chat history refreshed. Main aapka Focus OS AI Mentor hoon. Aaj kya plan karein?",
-                quickActionSuggestions = listOf("Bhai aaj kya karu?", "Kal mera IITM assignment hai", "Meri CGPA kaise improve hogi?", "Next 2 hours plan")
-            )
-        )
+        _chatMessages.value = loadInitialChatMessages(_userProfile.value.name)
     }
 
     fun sendUserMessage(text: String) {
@@ -315,80 +423,44 @@ class FocusOsRepository(private val context: Context) {
 
     private fun generateContextualAiResponse(userText: String): Pair<String, List<String>> {
         val prompt = userText.lowercase()
-        val itepCgpa = _degrees.value.find { it.type == DegreeType.ITEP }?.currentCgpa ?: 6.8
-        val iitmCgpa = _degrees.value.find { it.type == DegreeType.IITM }?.currentCgpa ?: 5.5
-        val missedCount = _missedRecoveries.value.count { !it.isRecovered }
+        val name = _userProfile.value.name.ifBlank { "there" }
 
         return when {
-            prompt.contains("cgpa") || prompt.contains("itep") || prompt.contains("iitm") || prompt.contains("marks") -> {
+            prompt.contains("cgpa") || prompt.contains("academics") || prompt.contains("grade") -> {
                 Pair(
-                    "Ravi, yahan hai aapka clear CGPA recovery roadmap:\n\n" +
-                    "• **ITEP (Maths) — Current: $itepCgpa**\n" +
-                    "  Target 7.5 ke liye aapko agle semesters mein average **8.12 SGPA** lana hai. Real Analysis aur Abstract Algebra mein derivations par dhyan do.\n\n" +
-                    "• **IITM (Data Science) — Current: $iitmCgpa**\n" +
-                    "  Target 6.5+ ke liye **~6.7 SGPA** chahiye. Weekly quizzes aur assignment deadlines miss mat karo.\n\n" +
-                    "✅ *Immediate Action:* Week 4 Statistics assignment kal submission se pehle complete kar lo.",
-                    listOf("Open Academics", "Calculate SGPA", "Check Subject Status")
+                    "Here is your academic focus strategy, $name:\n\n" +
+                    "• Maintain weekly consistency on derivations & quizzes.\n" +
+                    "• Complete pending assignments 24 hours before deadlines.\n\n" +
+                    "What academic subject needs attention today?",
+                    listOf("Open Academics", "Set Focus Timer", "Add Assignment Task")
                 )
             }
-            prompt.contains("gate") || prompt.contains("jam") || prompt.contains("ssc") || prompt.contains("career") -> {
+            prompt.contains("career") || prompt.contains("internship") || prompt.contains("python") || prompt.contains("code") -> {
                 Pair(
-                    "Mera honest advice Ravi: **Abhi simultaneously GATE + JAM + SSC start mat karo.**\n\n" +
-                    "Aap pehle se 2 heavy degrees kar rahe ho (ITEP Math + IITM DS) aur aapka agla milestone **₹5k-6k/mo paid internship** hai.\n\n" +
-                    "🎯 **Focus Strategy:**\n" +
-                    "1. 70% Energy → ITEP & IITM CGPA Recovery\n" +
-                    "2. 30% Energy → Python + Pandas + Mini Project\n" +
-                    "3. GATE/JAM → Sirf syllabus dekho, exam season mein decide karenge.",
-                    listOf("Check DS Roadmap", "View Mini Project", "View Internships")
+                    "Your career momentum plan:\n\n" +
+                    "1. Focus on core technical skills (Pandas, SQL, Problem solving)\n" +
+                    "2. Build 1 solid portfolio project published on GitHub\n" +
+                    "3. Apply to verified internships with tailored cover notes.\n\n" +
+                    "Ready to make progress on your roadmap today?",
+                    listOf("View Career Roadmap", "Open Project Checklist", "Log Focus Session")
                 )
             }
-            prompt.contains("distracted") || prompt.contains("focus") || prompt.contains("procrastinat") || prompt.contains("phone") || prompt.contains("bhatak") -> {
+            prompt.contains("distract") || prompt.contains("focus") || prompt.contains("phone") || prompt.contains("procrastinat") -> {
                 Pair(
-                    "Bhai, har student distract hota hai, guilt feel karne ki bilkul zaroorat nahi hai.\n\n" +
-                    "Pura din plan karne ki koshish mat karo. Bas **ek tiny step** lo:\n\n" +
-                    "1. Phone ko bed ya dusre room mein rakh do.\n" +
-                    "2. 25-minute ka Focus Timer start karo.\n" +
-                    "3. Bas assignment ka Question #1 kholo.\n\n" +
-                    "Jaise hi 5 minute nikalenge, momentum apne aap ban jayega.",
-                    listOf("Start 25 min Focus", "Log Screen Time", "Check Today Top 3")
-                )
-            }
-            prompt.contains("python") || prompt.contains("data science") || prompt.contains("project") || prompt.contains("pandas") || prompt.contains("sql") -> {
-                Pair(
-                    "Data Science foundation track:\n\n" +
-                    "• **Stage 1 (Python Basics):** Start with fundamentals\n" +
-                    "• **Stage 2 (NumPy & Math):** Arrays & vector operations\n" +
-                    "• **Stage 3 (Pandas):** Data cleaning & analysis\n\n" +
-                    "📁 **Student Performance Analyzer Project:**\n" +
-                    "Step 1 hai Dataset load karna aur EDA script tayyar karna. Checklist se ek task complete karo.",
-                    listOf("Open Project Checklist", "DS Roadmap 9 Stages", "Log Coding Habit")
-                )
-            }
-            prompt.contains("schedule") || prompt.contains("assignment") || prompt.contains("kal") || prompt.contains("timetable") -> {
-                Pair(
-                    "Ye raha aapke liye optimized schedule:\n\n" +
-                    "• **Block 1 (02:30 PM - 04:00 PM):** 🧠 Deep Study — IITM Statistics\n" +
-                    "• **Block 2 (04:30 PM - 05:45 PM):** 📐 ITEP Real Analysis derivations\n" +
-                    "• **Block 3 (07:00 PM - 08:00 PM):** 🏋️‍♂️ Gym / Workout\n" +
-                    "• **Block 4 (09:00 PM - 10:00 PM):** 💻 Coding / Project Practice\n" +
-                    "• **Block 5 (10:15 PM):** 🌙 Evening Check-in & sleep by 11:00 PM",
-                    listOf("Start Block 1 Focus", "Set Reminder", "View Timetable")
-                )
-            }
-            prompt.contains("next 2 hours") || prompt.contains("2 hours") || prompt.contains("agle 2 ghante") -> {
-                Pair(
-                    "Agle 2 hours ka direct action plan:\n\n" +
-                    "⏱️ **First 50 mins:** IITM Statistics Assignment Questions 1 to 4 solve karo.\n" +
-                    "☕ **10 mins Break:** Paani piyo, screen se door dekho.\n" +
-                    "⏱️ **Next 50 mins:** Real Analysis ke 2 main theorem proofs paper par likho.\n\n" +
-                    "Timer start karne ke liye ready ho?",
-                    listOf("Start 50m Focus Session", "View Top 3 Tasks")
+                    "Distractions happen to everyone, $name. Don't worry about yesterday.\n\n" +
+                    "Take one single small step right now:\n" +
+                    "1. Put your phone in another room or turn on Do Not Disturb.\n" +
+                    "2. Start a 25-minute Deep Focus block.\n" +
+                    "3. Tackle just the first question/task.\n\n" +
+                    "Shall we start the timer?",
+                    listOf("Start 25 min Focus", "Log Screen Time", "View Top Priorities")
                 )
             }
             else -> {
                 Pair(
-                    "Samajh gaya Ravi. Aaj ka din fresh start hai! Aapko kis specific cheez mein help chahiye — Schedule, CGPA strategy, Data Science project, ya Focus session?",
-                    listOf("Bhai aaj kya karu?", "Meri CGPA kaise improve hogi?", "Next 2 hours plan", "Start Focus Timer")
+                    "Hello $name! I'm your NOVA AI Coach. Let's make today count.\n\n" +
+                    "What would you like to focus on — Academics, Career & Projects, Routine, or a Deep Study block?",
+                    listOf("What should I do today?", "Next 2 hours plan", "Start Focus Timer", "Check Priorities")
                 )
             }
         }
@@ -411,464 +483,157 @@ class FocusOsRepository(private val context: Context) {
             score += ((focusHrs * 10).toInt()).coerceAtMost(20)
         }
 
-        _userProfile.value = _userProfile.value.copy(todayScore = score.coerceIn(0, 100))
+        val updated = _userProfile.value.copy(todayScore = score.coerceIn(0, 100))
+        saveProfile(updated)
     }
 
-    private fun loadInitialProfile() = UserProfile(
-        id = "user_ravi_1",
-        name = "Ravi",
-        email = "ravi@focusos.app",
-        onboardingCompleted = true,
-        majorGoal1 = "CGPA Recovery (ITEP -> 7.5+, IITM -> 6.5+)",
-        majorGoal2 = "Data Science Foundation & Paid Internship (₹5k-6k/mo)",
-        totalFocusedHoursThisWeek = 0.0,
-        currentStreakDays = 0,
-        todayScore = 0
-    )
+    // ----------------- Persistence Helpers -----------------
+    private fun saveSession(session: AuthSession) {
+        _authSession.value = session
+        prefs.edit().putString("auth_session_json", json.encodeToString(session)).apply()
+    }
 
-    private fun loadInitialSettings() = AppSettings(
-        themeMode = "dark",
-        dailyMorningBriefTime = "07:30 AM",
-        dailyEveningCheckinTime = "09:30 PM",
-        maxDailyNotifications = 4,
-        notificationsEnabled = true,
-        supabaseUrl = defaultSupabaseUrl,
-        supabaseAnonKey = defaultSupabaseAnonKey
-    )
+    private fun loadStoredSession(): AuthSession {
+        val raw = prefs.getString("auth_session_json", null) ?: return AuthSession()
+        return try {
+            json.decodeFromString<AuthSession>(raw)
+        } catch (e: Exception) {
+            AuthSession()
+        }
+    }
 
-    private fun loadInitialDegrees() = listOf(
-        DegreeInfo(
-            type = DegreeType.ITEP,
-            name = "ITEP — B.Sc. B.Ed. Mathematics",
-            currentYear = 2,
-            totalYears = 4,
-            currentCgpa = 6.8,
-            targetCgpa = 7.5,
-            completedCredits = 44,
-            totalCredits = 96,
-            currentSemester = 3,
-            isPrimaryFocus = true
-        ),
-        DegreeInfo(
-            type = DegreeType.IITM,
-            name = "IIT Madras — BS Data Science",
-            currentYear = 1,
-            totalYears = 4,
-            currentCgpa = 5.5,
-            targetCgpa = 6.5,
-            completedCredits = 20,
-            totalCredits = 116,
-            currentSemester = 2,
-            isPrimaryFocus = true
-        )
-    )
+    private fun saveProfile(profile: UserProfile) {
+        _userProfile.value = profile
+        prefs.edit().putString("user_profile_json", json.encodeToString(profile)).apply()
+    }
 
-    private fun loadInitialSubjects() = listOf(
-        Subject(
-            id = "subj_itep_1",
-            name = "Real Analysis",
-            degreeType = DegreeType.ITEP,
-            credits = 4,
-            currentScore = 70.0,
-            targetScore = 85.0,
-            difficulty = "Hard",
-            status = SubjectStatus.NEEDS_REVISION
-        ),
-        Subject(
-            id = "subj_itep_2",
-            name = "Abstract Algebra",
-            degreeType = DegreeType.ITEP,
-            credits = 4,
-            currentScore = 74.0,
-            targetScore = 80.0,
-            difficulty = "Hard",
-            status = SubjectStatus.NEEDS_REVISION
-        ),
-        Subject(
-            id = "subj_itep_3",
-            name = "Educational Psychology",
-            degreeType = DegreeType.ITEP,
-            credits = 3,
-            currentScore = 82.0,
-            targetScore = 85.0,
-            difficulty = "Medium",
-            status = SubjectStatus.LEARNING
-        ),
-        Subject(
-            id = "subj_iitm_1",
-            name = "Statistics for Data Science I",
-            degreeType = DegreeType.IITM,
-            credits = 4,
-            currentScore = 58.0,
-            targetScore = 75.0,
-            difficulty = "Hard",
-            status = SubjectStatus.NEEDS_REVISION
-        ),
-        Subject(
-            id = "subj_iitm_2",
-            name = "Mathematics for Data Science I",
-            degreeType = DegreeType.IITM,
-            credits = 4,
-            currentScore = 62.0,
-            targetScore = 75.0,
-            difficulty = "Hard",
-            status = SubjectStatus.NEEDS_REVISION
-        ),
-        Subject(
-            id = "subj_iitm_3",
-            name = "Computational Thinking (Python)",
-            degreeType = DegreeType.IITM,
-            credits = 4,
-            currentScore = 78.0,
-            targetScore = 85.0,
-            difficulty = "Medium",
-            status = SubjectStatus.LEARNING
-        )
-    )
+    private fun loadStoredProfile(): UserProfile {
+        val raw = prefs.getString("user_profile_json", null) ?: return UserProfile()
+        return try {
+            json.decodeFromString<UserProfile>(raw)
+        } catch (e: Exception) {
+            UserProfile()
+        }
+    }
 
-    private fun loadInitialClasses() = listOf(
-        ClassSession(
-            id = "cls_1",
-            subjectName = "IITM — Statistics I",
-            degreeType = DegreeType.IITM,
-            timeSlot = "10:00 AM - 11:30 AM",
-            topic = "Bayes Theorem & Conditional Probability",
-            status = ClassAttendanceStatus.UPCOMING,
-            date = "Today"
-        ),
-        ClassSession(
-            id = "cls_2",
-            subjectName = "ITEP — Real Analysis",
-            degreeType = DegreeType.ITEP,
-            timeSlot = "12:00 PM - 01:00 PM",
-            topic = "Cauchy Sequences & Convergence",
-            status = ClassAttendanceStatus.UPCOMING,
-            date = "Today"
-        ),
-        ClassSession(
-            id = "cls_3",
-            subjectName = "ITEP — Educational Psychology",
-            degreeType = DegreeType.ITEP,
-            timeSlot = "02:00 PM - 03:00 PM",
-            topic = "Cognitive Development Stages (Piaget)",
-            status = ClassAttendanceStatus.UPCOMING,
-            date = "Today"
-        )
-    )
+    private fun loadStoredSettings(): AppSettings {
+        val raw = prefs.getString("app_settings_json", null) ?: return AppSettings(supabaseUrl = defaultSupabaseUrl, supabaseAnonKey = defaultSupabaseAnonKey)
+        return try {
+            json.decodeFromString<AppSettings>(raw)
+        } catch (e: Exception) {
+            AppSettings(supabaseUrl = defaultSupabaseUrl, supabaseAnonKey = defaultSupabaseAnonKey)
+        }
+    }
 
-    private fun loadInitialMissedRecoveries() = listOf(
-        MissedClassRecovery(
-            id = "rec_1",
-            classSessionId = "cls_old_1",
-            subjectName = "IITM — Mathematics for DS",
-            degreeType = DegreeType.IITM,
-            topic = "Linear Algebra Matrix Transformations",
-            missedDate = "Yesterday",
-            watchLectureDone = false,
-            notesDone = false,
-            quizDone = false,
-            revisionDone = false,
-            isRecovered = false
-        )
-    )
+    private fun saveDegrees(list: List<DegreeInfo>) {
+        prefs.edit().putString("degrees_json", json.encodeToString(list)).apply()
+    }
 
-    private fun loadInitialTasks() = listOf(
-        TaskItem(
-            id = "task_1",
-            title = "Solve IITM Statistics Week 4 Assignment (Q1-Q10)",
-            category = TaskCategory.IITM,
-            priority = TaskPriority.HIGH,
-            estimatedMinutes = 60,
-            deadline = "Today 08:00 PM",
-            isTop3 = true,
-            isCompleted = false,
-            relatedSubject = "Statistics for Data Science I"
-        ),
-        TaskItem(
-            id = "task_2",
-            title = "ITEP Real Analysis sequence convergence theorem proof",
-            category = TaskCategory.ITEP,
-            priority = TaskPriority.HIGH,
-            estimatedMinutes = 45,
-            deadline = "Today 10:00 PM",
-            isTop3 = true,
-            isCompleted = false,
-            relatedSubject = "Real Analysis"
-        ),
-        TaskItem(
-            id = "task_3",
-            title = "Data Science: Load dataset into Pandas DataFrame",
-            category = TaskCategory.DATA_SCIENCE,
-            priority = TaskPriority.HIGH,
-            estimatedMinutes = 40,
-            deadline = "Tonight",
-            isTop3 = true,
-            isCompleted = false
-        ),
-        TaskItem(
-            id = "task_4",
-            title = "Gym: Pull Day (Back + Biceps) 45 min workout",
-            category = TaskCategory.HEALTH,
-            priority = TaskPriority.MEDIUM,
-            estimatedMinutes = 45,
-            deadline = "07:00 PM",
-            isCompleted = false
-        ),
-        TaskItem(
-            id = "task_5",
-            title = "Apply to 2 remote Data Analyst Internships on Internshala",
-            category = TaskCategory.INTERNSHIP,
-            priority = TaskPriority.MEDIUM,
-            estimatedMinutes = 30,
-            deadline = "Tomorrow",
-            isCompleted = false
-        )
-    )
+    private fun loadStoredDegrees(): List<DegreeInfo> {
+        val raw = prefs.getString("degrees_json", null) ?: return emptyList()
+        return try {
+            json.decodeFromString<List<DegreeInfo>>(raw)
+        } catch (e: Exception) {
+            emptyList()
+        }
+    }
 
-    private fun loadInitialFocusSessions(): List<FocusSession> = emptyList()
+    private fun saveSubjects(list: List<Subject>) {
+        prefs.edit().putString("subjects_json", json.encodeToString(list)).apply()
+    }
 
-    // Clean initial Roadmap without fake progress (starts at 0%)
+    private fun loadStoredSubjects(): List<Subject> {
+        val raw = prefs.getString("subjects_json", null) ?: return emptyList()
+        return try {
+            json.decodeFromString<List<Subject>>(raw)
+        } catch (e: Exception) {
+            emptyList()
+        }
+    }
+
+    private fun saveTasks(list: List<TaskItem>) {
+        prefs.edit().putString("tasks_json", json.encodeToString(list)).apply()
+    }
+
+    private fun loadStoredTasks(): List<TaskItem> {
+        val raw = prefs.getString("tasks_json", null) ?: return emptyList()
+        return try {
+            json.decodeFromString<List<TaskItem>>(raw)
+        } catch (e: Exception) {
+            emptyList()
+        }
+    }
+
+    private fun loadStoredClasses(): List<ClassSession> {
+        val raw = prefs.getString("classes_json", null) ?: return emptyList()
+        return try {
+            json.decodeFromString<List<ClassSession>>(raw)
+        } catch (e: Exception) {
+            emptyList()
+        }
+    }
+
+    private fun generateInitialSubjectsForDegrees(degrees: List<DegreeInfo>): List<Subject> {
+        return degrees.flatMap { deg ->
+            listOf(
+                Subject(id = "subj_${deg.type.name}_1", name = "Core Subject 1", degreeType = deg.type, credits = 4, currentScore = deg.currentCgpa * 10, targetScore = deg.targetCgpa * 10, difficulty = "Hard", status = SubjectStatus.LEARNING),
+                Subject(id = "subj_${deg.type.name}_2", name = "Core Subject 2", degreeType = deg.type, credits = 4, currentScore = deg.currentCgpa * 10, targetScore = deg.targetCgpa * 10, difficulty = "Medium", status = SubjectStatus.LEARNING)
+            )
+        }
+    }
+
     private fun loadInitialRoadmap() = listOf(
-        RoadmapStage(
-            stageNumber = 1,
-            title = "Python Fundamentals",
-            description = "Variables, loops, functions, OOP, list comprehensions, modules",
-            progressPercent = 0,
-            estimatedHours = 25,
-            lessonsCompleted = 0,
-            totalLessons = 12,
-            practiceProblemsDone = 0,
-            totalPracticeProblems = 30,
-            isCompleted = false
-        ),
-        RoadmapStage(
-            stageNumber = 2,
-            title = "NumPy & Numerical Computing",
-            description = "N-d arrays, vectorization, broadcasting, matrix algebra",
-            progressPercent = 0,
-            estimatedHours = 15,
-            lessonsCompleted = 0,
-            totalLessons = 8,
-            practiceProblemsDone = 0,
-            totalPracticeProblems = 20,
-            isCompleted = false
-        ),
-        RoadmapStage(
-            stageNumber = 3,
-            title = "Pandas Data Manipulation",
-            description = "DataFrames, filtering, group by, merging, handling nulls, transformations",
-            progressPercent = 0,
-            estimatedHours = 30,
-            lessonsCompleted = 0,
-            totalLessons = 14,
-            practiceProblemsDone = 0,
-            totalPracticeProblems = 40,
-            isCompleted = false
-        ),
-        RoadmapStage(
-            stageNumber = 4,
-            title = "Data Visualization",
-            description = "Matplotlib, Seaborn: distributions, heatmaps, categorical plots, storytelling",
-            progressPercent = 0,
-            estimatedHours = 20,
-            lessonsCompleted = 0,
-            totalLessons = 10,
-            practiceProblemsDone = 0,
-            totalPracticeProblems = 25,
-            isCompleted = false
-        ),
-        RoadmapStage(
-            stageNumber = 5,
-            title = "Exploratory Data Analysis (EDA)",
-            description = "End-to-end dataset cleaning, anomaly detection, statistical summaries",
-            progressPercent = 0,
-            estimatedHours = 25,
-            lessonsCompleted = 0,
-            totalLessons = 8,
-            practiceProblemsDone = 0,
-            totalPracticeProblems = 15,
-            isCompleted = false
-        ),
-        RoadmapStage(
-            stageNumber = 6,
-            title = "SQL & Relational Databases",
-            description = "SELECT, JOINs, aggregations, window functions, CTEs with SQLite/PostgreSQL",
-            progressPercent = 0,
-            estimatedHours = 25,
-            lessonsCompleted = 0,
-            totalLessons = 12,
-            practiceProblemsDone = 0,
-            totalPracticeProblems = 35,
-            isCompleted = false
-        ),
-        RoadmapStage(
-            stageNumber = 7,
-            title = "Mathematics & Applied Statistics",
-            description = "Probability distributions, hypothesis testing, p-values, Bayes theorem",
-            progressPercent = 0,
-            estimatedHours = 35,
-            lessonsCompleted = 0,
-            totalLessons = 15,
-            practiceProblemsDone = 0,
-            totalPracticeProblems = 45,
-            isCompleted = false
-        ),
-        RoadmapStage(
-            stageNumber = 8,
-            title = "Portfolio Projects",
-            description = "Real-world dataset end-to-end analysis published on GitHub",
-            progressPercent = 0,
-            estimatedHours = 30,
-            lessonsCompleted = 0,
-            totalLessons = 3,
-            practiceProblemsDone = 0,
-            totalPracticeProblems = 3,
-            isCompleted = false
-        ),
-        RoadmapStage(
-            stageNumber = 9,
-            title = "Internship Applications",
-            description = "Resume polishing, cold outreach, applying for ₹5k-6k/month roles",
-            progressPercent = 0,
-            estimatedHours = 20,
-            lessonsCompleted = 0,
-            totalLessons = 10,
-            practiceProblemsDone = 0,
-            totalPracticeProblems = 25,
-            isCompleted = false
-        )
+        RoadmapStage(stageNumber = 1, title = "Programming Fundamentals", description = "Syntax, data structures, algorithms, modular coding", progressPercent = 0, estimatedHours = 25, totalLessons = 12, totalPracticeProblems = 30),
+        RoadmapStage(stageNumber = 2, title = "Data Structures & Libraries", description = "NumPy, Pandas, arrays, vectorization, indexing", progressPercent = 0, estimatedHours = 20, totalLessons = 10, totalPracticeProblems = 25),
+        RoadmapStage(stageNumber = 3, title = "Data Analysis & Visualization", description = "Data cleaning, Matplotlib, Seaborn, exploratory analysis", progressPercent = 0, estimatedHours = 30, totalLessons = 14, totalPracticeProblems = 40),
+        RoadmapStage(stageNumber = 4, title = "Databases & SQL", description = "Relational queries, joins, aggregations, window functions", progressPercent = 0, estimatedHours = 25, totalLessons = 12, totalPracticeProblems = 35),
+        RoadmapStage(stageNumber = 5, title = "Applied Mathematics & Stats", description = "Probability, hypothesis testing, distributions", progressPercent = 0, estimatedHours = 35, totalLessons = 15, totalPracticeProblems = 45),
+        RoadmapStage(stageNumber = 6, title = "Portfolio Projects", description = "End-to-end practical project published on GitHub", progressPercent = 0, estimatedHours = 30, totalLessons = 3, totalPracticeProblems = 3),
+        RoadmapStage(stageNumber = 7, title = "Internship Applications", description = "Resume polishing, cold outreach, applying to roles", progressPercent = 0, estimatedHours = 20, totalLessons = 10, totalPracticeProblems = 25)
     )
 
-    // Clean project with 0% progress
     private fun loadInitialProjects() = listOf(
         PortfolioProject(
             id = "proj_1",
-            title = "Student Performance Analyzer",
-            description = "End-to-end Python exploratory data analysis examining study hours, attendance, and CGPA correlation with actionable insights.",
-            goal = "Demonstrate practical data analysis & visualization skills for internship applications.",
-            techStack = listOf("Python", "Pandas", "NumPy", "Matplotlib", "Seaborn"),
-            githubUrl = "https://github.com/ravi/student-performance-analyzer",
+            title = "Personal Data & Performance Analyzer",
+            description = "End-to-end exploratory analysis demonstrating clean code, visualization, and actionable insights.",
+            goal = "Demonstrate practical technical skills for portfolio and internship applications.",
+            techStack = listOf("Python", "Pandas", "NumPy", "Matplotlib"),
+            githubUrl = "",
             status = "Not Started",
             progressPercent = 0,
             tasks = listOf(
-                ProjectTask("pt_1", "Find dataset on Kaggle/UCI", false),
-                ProjectTask("pt_2", "Load dataset into Pandas", false),
-                ProjectTask("pt_3", "Inspect dataset info & summary stats", false),
-                ProjectTask("pt_4", "Clean data & handle missing values", false),
-                ProjectTask("pt_5", "Analyze score averages by group", false),
-                ProjectTask("pt_6", "Analyze study hours vs performance", false),
-                ProjectTask("pt_7", "Analyze attendance correlation", false),
-                ProjectTask("pt_8", "Analyze previous term scores", false),
-                ProjectTask("pt_9", "Calculate correlation matrix heatmap", false),
-                ProjectTask("pt_10", "Create visual charts & subplots", false),
-                ProjectTask("pt_11", "Write data insights summary", false),
-                ProjectTask("pt_12", "Create polished GitHub README", false),
-                ProjectTask("pt_13", "Publish public GitHub repository", false)
+                ProjectTask("pt_1", "Choose and clean dataset", false),
+                ProjectTask("pt_2", "Perform exploratory data analysis", false),
+                ProjectTask("pt_3", "Generate visual charts & correlations", false),
+                ProjectTask("pt_4", "Write summary insights & GitHub README", false),
+                ProjectTask("pt_5", "Publish public repository", false)
             )
         )
     )
 
-    private fun loadInitialInternships() = listOf(
-        InternshipApplication(
-            id = "intern_1",
-            company = "EduTech Insights",
-            role = "Data Analyst Intern",
-            stipend = "₹6,000/month",
-            location = "Remote",
-            appliedDate = "2026-10-04",
-            followUpDate = "2026-10-11",
-            status = InternshipStatus.APPLIED,
-            notes = "Target position for practical Pandas & visualization experience."
-        )
-    )
-
-    // Clean Exam tracks without dummy progress
-    private fun loadInitialExams() = listOf(
-        ExamTrack(
-            name = "GATE",
-            paper = "Mathematics (MA)",
-            status = "Future / Exploration",
-            syllabusProgress = 0,
-            pyqCompleted = 0,
-            totalPyqs = 500,
-            targetYear = "2028",
-            targetInstitutes = "IITs / IISc",
-            isActive = false
-        ),
-        ExamTrack(
-            name = "JAM",
-            paper = "Mathematics (MA)",
-            status = "Exploration",
-            syllabusProgress = 0,
-            pyqCompleted = 0,
-            totalPyqs = 400,
-            targetYear = "2027",
-            targetInstitutes = "IITs for M.Sc.",
-            isActive = false
-        ),
-        ExamTrack(
-            name = "SSC",
-            paper = "CGL / CHSL",
-            status = "Future Option",
-            syllabusProgress = 0,
-            pyqCompleted = 0,
-            totalPyqs = 1000,
-            targetYear = "2028+",
-            targetInstitutes = "Government Services",
-            isActive = false
-        )
-    )
-
-    // Clean Health log without fake completed values
-    private fun loadInitialHealthLog() = HealthLog(
-        date = "Today",
-        gymCompleted = false,
-        workoutType = WorkoutType.REST,
-        workoutDurationMinutes = 0,
-        steps = 0,
-        sleepHours = 0.0,
-        waterGlasses = 0,
-        moodRating = 0,
-        energyRating = 0
-    )
-
-    // Clean Habit tracking (starts with 0 streak and false today)
     private fun loadInitialHabits() = listOf(
-        HabitItem("h_1", "Study (Academics)", "School", 0, false, listOf(false, false, false, false, false, false, false)),
-        HabitItem("h_2", "Coding / Data Science", "Code", 0, false, listOf(false, false, false, false, false, false, false)),
-        HabitItem("h_3", "Gym / Physical Workout", "FitnessCenter", 0, false, listOf(false, false, false, false, false, false, false)),
+        HabitItem("h_1", "Deep Study Block", "School", 0, false, listOf(false, false, false, false, false, false, false)),
+        HabitItem("h_2", "Coding / Skill Building", "Code", 0, false, listOf(false, false, false, false, false, false, false)),
+        HabitItem("h_3", "Gym / Workout", "FitnessCenter", 0, false, listOf(false, false, false, false, false, false, false)),
         HabitItem("h_4", "7+ Hours Sleep", "Bedtime", 0, false, listOf(false, false, false, false, false, false, false)),
-        HabitItem("h_5", "Reading Math Concepts", "MenuBook", 0, false, listOf(false, false, false, false, false, false, false)),
-        HabitItem("h_6", "No Mindless Scrolling", "TimerOff", 0, false, listOf(false, false, false, false, false, false, false)),
-        HabitItem("h_7", "Daily Evening Review", "RateReview", 0, false, listOf(false, false, false, false, false, false, false))
+        HabitItem("h_5", "Mindful Screen Time", "TimerOff", 0, false, listOf(false, false, false, false, false, false, false))
     )
 
-    private fun loadInitialDistractionLog() = DistractionLog(
-        date = "Today",
-        instagramMinutes = 0,
-        youtubeMinutes = 0,
-        gamingMinutes = 0,
-        otherMinutes = 0,
-        yesterdayTotalMinutes = 0
+    private fun loadInitialExams() = listOf(
+        ExamTrack(name = "GATE", paper = "Technical", status = "Exploration", syllabusProgress = 0, pyqCompleted = 0, totalPyqs = 500, targetYear = "2028", targetInstitutes = "IITs / IISc", isActive = false),
+        ExamTrack(name = "JAM", paper = "Sciences", status = "Exploration", syllabusProgress = 0, pyqCompleted = 0, totalPyqs = 400, targetYear = "2027", targetInstitutes = "IITs", isActive = false)
     )
 
-    private fun loadInitialJournal() = DailyJournal(
-        id = "j_today",
-        date = "Today",
-        whatWentWell = "",
-        whatWentWrong = "",
-        whatToImproveTomorrow = "",
-        moodRating = 0,
-        energyRating = 0,
-        aiPatternInsight = "Log your daily progress and focus sessions to generate personalized insights."
-    )
-
-    private fun loadInitialChatMessages() = listOf(
-        ChatMessage(
-            id = "m_0",
-            sender = MessageSender.AI,
-            text = "Good day Ravi! Main aapka Focus OS AI Mentor hoon.\n\nAapki primary priorities:\n1. 🎯 **CGPA Recovery** (ITEP 6.8 & IITM 5.5)\n2. 📊 **Data Science & Paid Internship** (₹5k-6k/mo target)\n\nBatao bhai, aaj kis cheez par kaam start karein?",
-            quickActionSuggestions = listOf("Bhai aaj kya karu?", "Kal mera IITM assignment hai", "Meri CGPA kaise improve hogi?", "Next 2 hours plan")
+    private fun loadInitialChatMessages(userName: String = ""): List<ChatMessage> {
+        val greetingName = if (userName.isNotBlank()) " $userName" else ""
+        return listOf(
+            ChatMessage(
+                id = "m_0",
+                sender = MessageSender.AI,
+                text = "Welcome to NOVA$greetingName.\n\nI'm your personal AI Coach, connected to your goals and schedule. What would you like to accomplish today?",
+                quickActionSuggestions = listOf("What should I focus on?", "Plan my next 2 hours", "Start Focus Timer", "Check Priorities")
+            )
         )
-    )
+    }
 }

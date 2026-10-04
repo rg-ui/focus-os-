@@ -7,12 +7,12 @@ data class RoadmapStage(
     val stageNumber: Int,
     val title: String,
     val description: String,
-    val progressPercent: Int,
-    val estimatedHours: Int,
-    val lessonsCompleted: Int,
-    val totalLessons: Int,
-    val practiceProblemsDone: Int,
-    val totalPracticeProblems: Int,
+    val progressPercent: Int = 0,
+    val estimatedHours: Int = 20,
+    val lessonsCompleted: Int = 0,
+    val totalLessons: Int = 10,
+    val practiceProblemsDone: Int = 0,
+    val totalPracticeProblems: Int = 25,
     val isCompleted: Boolean = false,
     val isCurrent: Boolean = false
 )
@@ -30,10 +30,10 @@ data class PortfolioProject(
     val title: String,
     val description: String,
     val goal: String,
-    val techStack: List<String>,
+    val techStack: List<String> = emptyList(),
     val githubUrl: String = "",
     val status: String = "In Progress", // Not Started, In Progress, Completed
-    val progressPercent: Int = 40,
+    val progressPercent: Int = 0,
     val tasks: List<ProjectTask> = emptyList()
 )
 
@@ -52,7 +52,7 @@ data class InternshipApplication(
     val id: String,
     val company: String,
     val role: String,
-    val stipend: String = "₹6,000/month",
+    val stipend: String = "Competitive / Performance",
     val location: String = "Remote",
     val appliedDate: String = "2026-10-01",
     val followUpDate: String = "2026-10-08",
@@ -64,12 +64,22 @@ data class InternshipApplication(
 @Serializable
 data class ExamTrack(
     val name: String, // GATE, JAM, SSC
-    val paper: String,
-    val status: String, // "Exploration", "Future Option", "Active"
-    val syllabusProgress: Int,
-    val pyqCompleted: Int,
-    val totalPyqs: Int,
-    val targetYear: String,
-    val targetInstitutes: String,
-    val isActive: Boolean = false
+    val paper: String = "Computer Science / Data Science",
+    val status: String = "Active", // "Exploration", "Future Option", "Active"
+    val syllabusProgress: Int = 0,
+    val pyqCompleted: Int = 0,
+    val totalPyqs: Int = 100,
+    val targetYear: String = "2027",
+    val targetInstitutes: String = "Top Institutions",
+    val isActive: Boolean = true
+)
+
+@Serializable
+data class ExamGoal(
+    val examName: String,
+    val targetYear: Int = 2027,
+    val targetPercentileOrRank: String = "Top 1%",
+    val syllabusProgressPercent: Int = 0,
+    val mockTestsGiven: Int = 0,
+    val averageScore: Double = 0.0
 )

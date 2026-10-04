@@ -19,15 +19,11 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.focusos.app.data.models.TaskCategory
-import com.focusos.app.data.models.TaskItem
-import com.focusos.app.data.models.TaskPriority
 import com.focusos.app.ui.components.*
 import com.focusos.app.ui.screens.*
 import com.focusos.app.ui.theme.*
@@ -35,6 +31,16 @@ import com.focusos.app.util.AppUpdateManager
 import com.focusos.app.util.NotificationHelper
 import com.focusos.app.util.UpdateInfo
 import kotlinx.coroutines.launch
+
+enum class AppScreenState {
+    SPLASH,
+    WELCOME,
+    SIGN_UP,
+    LOGIN,
+    FORGOT_PASSWORD,
+    ONBOARDING,
+    MAIN_APP
+}
 
 enum class NavItem(
     val title: String,
@@ -57,15 +63,16 @@ class MainActivity : ComponentActivity() {
 
         setContent {
             val repository = (application as FocusOsApp).repository
+            val session by repository.authSession.collectAsState()
             val userProfile by repository.userProfile.collectAsState()
             val tasks by repository.tasks.collectAsState()
             val subjects by repository.subjects.collectAsState()
             val projects by repository.portfolioProjects.collectAsState()
             val internships by repository.internships.collectAsState()
 
+            var appScreenState by remember { mutableStateOf(AppScreenState.SPLASH) }
             var currentNav by remember { mutableStateOf(NavItem.HOME) }
             var showSettings by remember { mutableStateOf(false) }
-            var showOnboarding by remember { mutableStateOf(!userProfile.onboardingCompleted) }
             var showQuickActions by remember { mutableStateOf(false) }
             var showFocusTimer by remember { mutableStateOf(false) }
             var showGlobalSearch by remember { mutableStateOf(false) }
@@ -89,208 +96,285 @@ class MainActivity : ComponentActivity() {
             }
 
             FocusOsTheme {
-                if (showOnboarding) {
-                    OnboardingScreen(
-                        onFinish = {
-                            repository.completeOnboarding()
-                            showOnboarding = false
-                        }
-                    )
-                } else if (showSettings) {
-                    SettingsScreen(
-                        repository = repository,
-                        onReplayOnboarding = {
-                            showSettings = false
-                            showOnboarding = true
-                        },
-                        onBack = { showSettings = false }
-                    )
-                } else {
-                    Scaffold(
-                        topBar = {
-                            FocusOsGlassTopBar(
-                                currentNav = currentNav,
-                                onOpenSearch = { showGlobalSearch = true },
-                                onOpenSettings = { showSettings = true },
-                                onTestNotification = {
-                                    NotificationHelper.showNotification(
-                                        this@MainActivity,
-                                        NotificationHelper.CHANNEL_DEADLINES,
-                                        101,
-                                        "IITM Statistics Assignment",
-                                        "Due tomorrow at 11:59 PM. Finish this before starting new topics."
-                                    )
-                                    Toast.makeText(this@MainActivity, "Notification sent", Toast.LENGTH_SHORT).show()
+                when (appScreenState) {
+                    AppScreenState.SPLASH -> {
+                        SplashScreen(
+                            onSplashComplete = {
+                                appScreenState = when {
+                                    session.accessToken.isNotBlank() && userProfile.onboardingCompleted -> AppScreenState.MAIN_APP
+                                    session.accessToken.isNotBlank() && !userProfile.onboardingCompleted -> AppScreenState.ONBOARDING
+                                    else -> AppScreenState.WELCOME
                                 }
-                            )
-                        },
-                        bottomBar = {
-                            FocusOsGlassBottomNavBar(
-                                currentNav = currentNav,
-                                onNavSelected = { currentNav = it }
-                            )
-                        },
-                        floatingActionButton = {
-                            val fabShape = CircleShape
-                            Box(
-                                modifier = Modifier
-                                    .padding(bottom = 76.dp)
-                                    .size(56.dp)
-                                    .clip(fabShape)
-                                    .background(
-                                        Brush.linearGradient(
-                                            listOf(AccentBlue, AccentCyan)
-                                        )
-                                    )
-                                    .border(1.5.dp, Brush.linearGradient(listOf(Color.White.copy(alpha = 0.6f), Color.Transparent)), fabShape)
-                                    .clickable { showQuickActions = true },
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Icon(Icons.Default.Add, contentDescription = "Quick Action", tint = Color.White, modifier = Modifier.size(28.dp))
                             }
-                        },
-                        containerColor = GlassBgDark
-                    ) { innerPadding ->
-                        Box(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .padding(innerPadding)
-                        ) {
-                            when (currentNav) {
-                                NavItem.HOME -> HomeScreen(
-                                    repository = repository,
-                                    onNavigateToToday = { currentNav = NavItem.TODAY },
-                                    onNavigateToAcademics = { currentNav = NavItem.ACADEMICS },
-                                    onNavigateToCareer = { currentNav = NavItem.CAREER },
-                                    onNavigateToHealth = { currentNav = NavItem.HEALTH },
-                                    onNavigateToAi = { currentNav = NavItem.AI },
-                                    onOpenFocusTimer = { showFocusTimer = true }
-                                )
-                                NavItem.TODAY -> TodayScreen(
-                                    repository = repository,
-                                    onOpenFocusTimer = { showFocusTimer = true }
-                                )
-                                NavItem.ACADEMICS -> AcademicsScreen(
-                                    repository = repository
-                                )
-                                NavItem.CAREER -> CareerScreen(
-                                    repository = repository,
-                                    onNavigateToAiMentor = { prompt ->
-                                        pendingAiPrompt = prompt
-                                        currentNav = NavItem.AI
-                                    }
-                                )
-                                NavItem.HEALTH -> HealthScreen(
-                                    repository = repository
-                                )
-                                NavItem.AI -> AiMentorScreen(
-                                    repository = repository,
-                                    initialPrompt = pendingAiPrompt
-                                )
-                            }
-                        }
+                        )
+                    }
 
-                        // MODALS & OVERLAYS
-                        if (availableUpdate != null) {
-                            val update = availableUpdate!!
-                            AlertDialog(
-                                onDismissRequest = { availableUpdate = null },
-                                title = { Text("Update Available (${update.latestVersionName})", color = GlassDarkTextPrimary) },
-                                text = {
-                                    Column {
-                                        Text(
-                                            text = update.changelog,
-                                            fontSize = 13.sp,
-                                            color = GlassDarkTextSecondary
-                                        )
-                                        Spacer(Modifier.height(10.dp))
-                                        Text(
-                                            text = "Focus OS will download and apply this update automatically without losing your data.",
-                                            fontSize = 12.sp,
-                                            fontWeight = FontWeight.Medium,
-                                            color = StatusGreen
-                                        )
-                                    }
+                    AppScreenState.WELCOME -> {
+                        WelcomeScreen(
+                            onGetStarted = { appScreenState = AppScreenState.SIGN_UP },
+                            onLogin = { appScreenState = AppScreenState.LOGIN }
+                        )
+                    }
+
+                    AppScreenState.SIGN_UP -> {
+                        SignUpScreen(
+                            repository = repository,
+                            onSignUpSuccess = {
+                                appScreenState = AppScreenState.ONBOARDING
+                            },
+                            onNavigateToLogin = {
+                                appScreenState = AppScreenState.LOGIN
+                            },
+                            onBack = {
+                                appScreenState = AppScreenState.WELCOME
+                            }
+                        )
+                    }
+
+                    AppScreenState.LOGIN -> {
+                        LoginScreen(
+                            repository = repository,
+                            onLoginSuccess = {
+                                val completed = repository.userProfile.value.onboardingCompleted
+                                appScreenState = if (completed) AppScreenState.MAIN_APP else AppScreenState.ONBOARDING
+                            },
+                            onNavigateToSignUp = {
+                                appScreenState = AppScreenState.SIGN_UP
+                            },
+                            onForgotPassword = {
+                                appScreenState = AppScreenState.FORGOT_PASSWORD
+                            },
+                            onBack = {
+                                appScreenState = AppScreenState.WELCOME
+                            }
+                        )
+                    }
+
+                    AppScreenState.FORGOT_PASSWORD -> {
+                        ForgotPasswordScreen(
+                            repository = repository,
+                            onBack = {
+                                appScreenState = AppScreenState.LOGIN
+                            }
+                        )
+                    }
+
+                    AppScreenState.ONBOARDING -> {
+                        OnboardingFlowScreen(
+                            repository = repository,
+                            onOnboardingFinished = {
+                                appScreenState = AppScreenState.MAIN_APP
+                            }
+                        )
+                    }
+
+                    AppScreenState.MAIN_APP -> {
+                        if (showSettings) {
+                            SettingsScreen(
+                                repository = repository,
+                                onReplayOnboarding = {
+                                    showSettings = false
+                                    appScreenState = AppScreenState.ONBOARDING
                                 },
-                                confirmButton = {
-                                    Button(
-                                        onClick = {
-                                            AppUpdateManager.startDownloadAndInstall(
+                                onSignOut = {
+                                    showSettings = false
+                                    appScreenState = AppScreenState.WELCOME
+                                },
+                                onBack = { showSettings = false }
+                            )
+                        } else {
+                            Scaffold(
+                                topBar = {
+                                    NovaGlassTopBar(
+                                        currentNav = currentNav,
+                                        onOpenSearch = { showGlobalSearch = true },
+                                        onOpenSettings = { showSettings = true },
+                                        onTestNotification = {
+                                            NotificationHelper.showNotification(
                                                 this@MainActivity,
-                                                update.downloadUrl
-                                            ) { msg ->
-                                                Toast.makeText(this@MainActivity, msg, Toast.LENGTH_SHORT).show()
-                                            }
-                                            availableUpdate = null
-                                        },
-                                        colors = ButtonDefaults.buttonColors(containerColor = AccentBlue)
-                                    ) {
-                                        Text("Update Now")
-                                    }
+                                                NotificationHelper.CHANNEL_DEADLINES,
+                                                101,
+                                                "NOVA Focus Reminder",
+                                                "Time for your scheduled study session."
+                                            )
+                                        }
+                                    )
                                 },
-                                dismissButton = {
-                                    TextButton(onClick = { availableUpdate = null }) {
-                                        Text("Later", color = GlassDarkTextSecondary)
+                                bottomBar = {
+                                    NovaGlassBottomNavBar(
+                                        currentNav = currentNav,
+                                        onNavSelected = { currentNav = it }
+                                    )
+                                },
+                                floatingActionButton = {
+                                    if (currentNav == NavItem.HOME || currentNav == NavItem.TODAY) {
+                                        FloatingActionButton(
+                                            onClick = { showQuickActions = true },
+                                            containerColor = AccentBlue,
+                                            contentColor = Color.White,
+                                            shape = CircleShape,
+                                            modifier = Modifier
+                                                .padding(bottom = 76.dp)
+                                                .size(54.dp)
+                                        ) {
+                                            Icon(
+                                                Icons.Default.Add,
+                                                contentDescription = "Quick Actions",
+                                                modifier = Modifier.size(26.dp)
+                                            )
+                                        }
                                     }
                                 }
-                            )
-                        }
-
-                        if (showQuickActions) {
-                            QuickActionSheet(
-                                onDismiss = { showQuickActions = false },
-                                onActionSelected = { actionId ->
-                                    when (actionId) {
-                                        "add_task" -> showAddTaskDialog = true
-                                        "start_focus" -> showFocusTimer = true
-                                        "log_class" -> currentNav = NavItem.TODAY
-                                        "log_gym" -> currentNav = NavItem.HEALTH
-                                        "log_study" -> showFocusTimer = true
-                                        "add_internship" -> currentNav = NavItem.CAREER
-                                        "add_journal" -> currentNav = NavItem.HEALTH
-                                        "update_cgpa" -> currentNav = NavItem.ACADEMICS
-                                        "chat_ai" -> currentNav = NavItem.AI
+                            ) { innerPadding ->
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxSize()
+                                        .padding(innerPadding)
+                                ) {
+                                    when (currentNav) {
+                                        NavItem.HOME -> HomeScreen(
+                                            repository = repository,
+                                            onNavigateToToday = { currentNav = NavItem.TODAY },
+                                            onNavigateToAcademics = { currentNav = NavItem.ACADEMICS },
+                                            onNavigateToCareer = { currentNav = NavItem.CAREER },
+                                            onNavigateToHealth = { currentNav = NavItem.HEALTH },
+                                            onNavigateToAi = { currentNav = NavItem.AI },
+                                            onOpenFocusTimer = { showFocusTimer = true },
+                                            onAddTask = { showAddTaskDialog = true }
+                                        )
+                                        NavItem.TODAY -> TodayScreen(
+                                            repository = repository,
+                                            onOpenFocusTimer = { showFocusTimer = true }
+                                        )
+                                        NavItem.ACADEMICS -> AcademicsScreen(
+                                            repository = repository,
+                                            onNavigateToAiMentor = { currentNav = NavItem.AI }
+                                        )
+                                        NavItem.CAREER -> CareerScreen(
+                                            repository = repository,
+                                            onNavigateToAiMentor = {
+                                                pendingAiPrompt = it
+                                                currentNav = NavItem.AI
+                                            }
+                                        )
+                                        NavItem.HEALTH -> HealthScreen(repository = repository)
+                                        NavItem.AI -> AiMentorScreen(
+                                            repository = repository,
+                                            initialPrompt = pendingAiPrompt
+                                        )
                                     }
                                 }
-                            )
-                        }
 
-                        if (showFocusTimer) {
-                            FocusTimerModal(
-                                onDismiss = { showFocusTimer = false },
-                                onSessionCompleted = { session ->
-                                    repository.logFocusSession(session)
-                                    Toast.makeText(this@MainActivity, "Focus session logged! +${session.durationMinutes}m", Toast.LENGTH_SHORT).show()
+                                // Update Dialog
+                                availableUpdate?.let { update ->
+                                    AlertDialog(
+                                        onDismissRequest = { availableUpdate = null },
+                                        containerColor = GlassDarkCard,
+                                        title = {
+                                            Text(
+                                                "NOVA Update Available",
+                                                color = GlassDarkTextPrimary,
+                                                fontWeight = FontWeight.Bold
+                                            )
+                                        },
+                                        text = {
+                                            Column {
+                                                Text(
+                                                    "Version ${update.latestVersion} is now ready for download.",
+                                                    color = GlassDarkTextSecondary,
+                                                    fontSize = 14.sp
+                                                )
+                                                if (update.changelog.isNotBlank()) {
+                                                    Spacer(modifier = Modifier.height(8.dp))
+                                                    Text(
+                                                        update.changelog,
+                                                        color = GlassDarkTextPrimary,
+                                                        fontSize = 13.sp
+                                                    )
+                                                }
+                                            }
+                                        },
+                                        confirmButton = {
+                                            Button(
+                                                onClick = {
+                                                    AppUpdateManager.downloadAndInstallApk(
+                                                        this@MainActivity,
+                                                        update.downloadUrl
+                                                    ) { msg ->
+                                                        Toast.makeText(this@MainActivity, msg, Toast.LENGTH_SHORT).show()
+                                                    }
+                                                    availableUpdate = null
+                                                },
+                                                colors = ButtonDefaults.buttonColors(containerColor = AccentBlue)
+                                            ) {
+                                                Text("Update Now")
+                                            }
+                                        },
+                                        dismissButton = {
+                                            TextButton(onClick = { availableUpdate = null }) {
+                                                Text("Later", color = GlassDarkTextSecondary)
+                                            }
+                                        }
+                                    )
                                 }
-                            )
-                        }
 
-                        if (showGlobalSearch) {
-                            GlobalSearchDialog(
-                                tasks = tasks,
-                                subjects = subjects,
-                                projects = projects,
-                                internships = internships,
-                                onDismiss = { showGlobalSearch = false },
-                                onItemSelected = { itemId ->
-                                    when {
-                                        itemId.startsWith("task_") -> currentNav = NavItem.TODAY
-                                        itemId.startsWith("subject_") -> currentNav = NavItem.ACADEMICS
-                                        itemId.startsWith("project_") || itemId.startsWith("intern_") -> currentNav = NavItem.CAREER
-                                    }
+                                if (showQuickActions) {
+                                    QuickActionSheet(
+                                        onDismiss = { showQuickActions = false },
+                                        onActionSelected = { actionId ->
+                                            when (actionId) {
+                                                "add_task" -> showAddTaskDialog = true
+                                                "start_focus" -> showFocusTimer = true
+                                                "log_class" -> currentNav = NavItem.TODAY
+                                                "log_gym" -> currentNav = NavItem.HEALTH
+                                                "log_study" -> showFocusTimer = true
+                                                "add_internship" -> currentNav = NavItem.CAREER
+                                                "add_journal" -> currentNav = NavItem.HEALTH
+                                                "update_cgpa" -> currentNav = NavItem.ACADEMICS
+                                                "chat_ai" -> currentNav = NavItem.AI
+                                            }
+                                        }
+                                    )
                                 }
-                            )
-                        }
 
-                        if (showAddTaskDialog) {
-                            AddTaskDialog(
-                                onDismiss = { showAddTaskDialog = false },
-                                onAddTask = { newTask ->
-                                    repository.addTask(newTask)
-                                    showAddTaskDialog = false
-                                    Toast.makeText(this@MainActivity, "Task added", Toast.LENGTH_SHORT).show()
+                                if (showFocusTimer) {
+                                    FocusTimerModal(
+                                        onDismiss = { showFocusTimer = false },
+                                        onSessionCompleted = { session ->
+                                            repository.logFocusSession(session)
+                                            Toast.makeText(this@MainActivity, "Focus session logged! +${session.durationMinutes}m", Toast.LENGTH_SHORT).show()
+                                        }
+                                    )
                                 }
-                            )
+
+                                if (showGlobalSearch) {
+                                    GlobalSearchDialog(
+                                        tasks = tasks,
+                                        subjects = subjects,
+                                        projects = projects,
+                                        internships = internships,
+                                        onDismiss = { showGlobalSearch = false },
+                                        onItemSelected = { itemId ->
+                                            when {
+                                                itemId.startsWith("task_") -> currentNav = NavItem.TODAY
+                                                itemId.startsWith("subject_") -> currentNav = NavItem.ACADEMICS
+                                                itemId.startsWith("project_") || itemId.startsWith("intern_") -> currentNav = NavItem.CAREER
+                                            }
+                                        }
+                                    )
+                                }
+
+                                if (showAddTaskDialog) {
+                                    AddTaskDialog(
+                                        onDismiss = { showAddTaskDialog = false },
+                                        onAddTask = { newTask ->
+                                            repository.addTask(newTask)
+                                            showAddTaskDialog = false
+                                            Toast.makeText(this@MainActivity, "Task added", Toast.LENGTH_SHORT).show()
+                                        }
+                                    )
+                                }
+                            }
                         }
                     }
                 }
@@ -301,7 +385,7 @@ class MainActivity : ComponentActivity() {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun FocusOsGlassTopBar(
+fun NovaGlassTopBar(
     currentNav: NavItem,
     onOpenSearch: () -> Unit,
     onOpenSettings: () -> Unit,
@@ -320,19 +404,21 @@ fun FocusOsGlassTopBar(
                 ) {
                     Icon(
                         Icons.Default.Adjust,
-                        contentDescription = "Focus OS",
+                        contentDescription = "NOVA",
                         tint = AccentCyan,
                         modifier = Modifier.size(18.dp)
                     )
                 }
                 Spacer(modifier = Modifier.width(10.dp))
-                Text(
-                    text = "FOCUS OS",
-                    fontSize = 17.sp,
-                    fontWeight = FontWeight.Bold,
-                    letterSpacing = 1.sp,
-                    color = GlassDarkTextPrimary
-                )
+                Column {
+                    Text(
+                        text = "NOVA",
+                        fontSize = 17.sp,
+                        fontWeight = FontWeight.Bold,
+                        letterSpacing = 1.5.sp,
+                        color = GlassDarkTextPrimary
+                    )
+                }
             }
         },
         actions = {
@@ -353,7 +439,7 @@ fun FocusOsGlassTopBar(
 }
 
 @Composable
-fun FocusOsGlassBottomNavBar(
+fun NovaGlassBottomNavBar(
     currentNav: NavItem,
     onNavSelected: (NavItem) -> Unit
 ) {

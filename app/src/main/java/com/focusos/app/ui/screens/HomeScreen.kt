@@ -1,13 +1,11 @@
 package com.focusos.app.ui.screens
 
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -26,7 +24,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.focusos.app.data.models.*
 import com.focusos.app.data.repository.FocusOsRepository
-import com.focusos.app.ui.components.AppleCard
 import com.focusos.app.ui.components.AppleScoreRing
 import com.focusos.app.ui.components.CategoryBadge
 import com.focusos.app.ui.components.GlassBackgroundBox
@@ -42,7 +39,8 @@ fun HomeScreen(
     onNavigateToCareer: () -> Unit,
     onNavigateToHealth: () -> Unit,
     onNavigateToAi: () -> Unit,
-    onOpenFocusTimer: () -> Unit
+    onOpenFocusTimer: () -> Unit,
+    onAddTask: () -> Unit
 ) {
     val userProfile by repository.userProfile.collectAsState()
     val tasks by repository.tasks.collectAsState()
@@ -52,17 +50,18 @@ fun HomeScreen(
     val dsRoadmap by repository.dsRoadmap.collectAsState()
     val internships by repository.internships.collectAsState()
     val focusSessions by repository.focusSessions.collectAsState()
+    val healthLog by repository.healthLog.collectAsState()
 
     val top3Tasks = tasks.filter { it.isTop3 }
-    val itepDegree = degrees.find { it.type == DegreeType.ITEP }
-    val iitmDegree = degrees.find { it.type == DegreeType.IITM }
+    val displayTasks = if (top3Tasks.isNotEmpty()) top3Tasks else tasks.take(3)
 
     val currentHour = remember { Calendar.getInstance().get(Calendar.HOUR_OF_DAY) }
+    val userName = userProfile.name.ifBlank { "there" }
     val greeting = when (currentHour) {
-        in 5..11 -> "Good morning, ${userProfile.name}."
-        in 12..16 -> "Good afternoon, ${userProfile.name}."
-        in 17..21 -> "Good evening, ${userProfile.name}."
-        else -> "Good night, ${userProfile.name}."
+        in 5..11 -> "Good morning, $userName."
+        in 12..16 -> "Good afternoon, $userName."
+        in 17..21 -> "Good evening, $userName."
+        else -> "Good night, $userName."
     }
 
     val dsProgress = remember(dsRoadmap) {
@@ -81,7 +80,7 @@ fun HomeScreen(
             verticalArrangement = Arrangement.spacedBy(16.dp),
             contentPadding = PaddingValues(top = 16.dp, bottom = 100.dp)
         ) {
-            // 1. TOP GREETING HEADER
+            // 1. TOP GREETING & STATUS
             item {
                 Column {
                     Text(
@@ -101,7 +100,7 @@ fun HomeScreen(
                 }
             }
 
-            // 2. TODAY SCORE CARD (GLASS)
+            // 2. TODAY'S SCORE CARD
             item {
                 GlassCard {
                     Row(
@@ -111,7 +110,7 @@ fun HomeScreen(
                     ) {
                         Column(modifier = Modifier.weight(1f)) {
                             Text(
-                                text = "TODAY SCORE",
+                                text = "TODAY'''S MOMENTUM",
                                 style = MaterialTheme.typography.labelSmall.copy(
                                     fontWeight = FontWeight.Bold,
                                     letterSpacing = 1.sp
@@ -132,9 +131,9 @@ fun HomeScreen(
                             Spacer(modifier = Modifier.height(4.dp))
                             Text(
                                 text = if (userProfile.todayScore == 0)
-                                    "Complete your top tasks and start a focus session to build score."
+                                    "Complete your first task and log focus to build today'''s score."
                                 else
-                                    "Calculated from completed tasks, focus sessions & healthy habits.",
+                                    "Calculated from completed tasks, deep focus & healthy habits.",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = GlassDarkTextSecondary
                             )
@@ -178,7 +177,7 @@ fun HomeScreen(
                 }
             }
 
-            // 3. TOP 3 PRIORITIES (GLASS)
+            // 3. TOP PRIORITIES & TASKS
             item {
                 Column {
                     Row(
@@ -187,7 +186,7 @@ fun HomeScreen(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(
-                            text = "TOP 3 PRIORITIES",
+                            text = "TOP PRIORITIES",
                             style = MaterialTheme.typography.labelLarge.copy(
                                 fontWeight = FontWeight.SemiBold,
                                 letterSpacing = 0.8.sp
@@ -195,24 +194,50 @@ fun HomeScreen(
                             color = GlassDarkTextSecondary
                         )
                         Text(
-                            text = "$totalCompletedTasks completed",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = AccentCyan
+                            text = if (tasks.isNotEmpty()) "$totalCompletedTasks/${tasks.size} done" else "+ Add Task",
+                            style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.SemiBold),
+                            color = AccentCyan,
+                            modifier = Modifier.clickable { onAddTask() }
                         )
                     }
 
                     Spacer(modifier = Modifier.height(10.dp))
 
                     GlassCard {
-                        if (top3Tasks.isEmpty()) {
-                            Text(
-                                text = "No priorities set for today. Add high impact tasks to stay locked in.",
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = GlassDarkTextSecondary,
-                                modifier = Modifier.padding(vertical = 8.dp)
-                            )
+                        if (displayTasks.isEmpty()) {
+                            // Beautiful Empty State
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(vertical = 12.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally
+                            ) {
+                                Text(
+                                    text = "Your day is clear. Let'''s decide what matters.",
+                                    fontSize = 14.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = GlassDarkTextPrimary
+                                )
+                                Spacer(modifier = Modifier.height(6.dp))
+                                Text(
+                                    text = "Add 1-3 high priority tasks to protect your focus today.",
+                                    fontSize = 12.sp,
+                                    color = GlassDarkTextSecondary
+                                )
+                                Spacer(modifier = Modifier.height(12.dp))
+                                Box(
+                                    modifier = Modifier
+                                        .clip(RoundedCornerShape(10.dp))
+                                        .background(StatusBlueSubtle)
+                                        .border(1.dp, AccentBlue.copy(alpha = 0.4f), RoundedCornerShape(10.dp))
+                                        .clickable(onClick = onAddTask)
+                                        .padding(horizontal = 14.dp, vertical = 8.dp)
+                                ) {
+                                    Text("+ Add First Priority Task", fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = AccentCyan)
+                                }
+                            }
                         } else {
-                            top3Tasks.forEachIndexed { index, task ->
+                            displayTasks.forEachIndexed { index, task ->
                                 Row(
                                     modifier = Modifier
                                         .fillMaxWidth()
@@ -250,7 +275,7 @@ fun HomeScreen(
                                         }
                                     }
                                 }
-                                if (index < top3Tasks.size - 1) {
+                                if (index < displayTasks.size - 1) {
                                     HorizontalDivider(
                                         color = Color(0x18FFFFFF),
                                         thickness = 0.5.dp
@@ -262,7 +287,7 @@ fun HomeScreen(
                 }
             }
 
-            // 4. TODAY AT A GLANCE (GLASS)
+            // 4. TODAY AT A GLANCE (Deep Focus + Classes / Routine)
             item {
                 Column {
                     Text(
@@ -321,27 +346,7 @@ fun HomeScreen(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
-                        GlassCard(
-                            modifier = Modifier
-                                .weight(1f)
-                                .clickable { onNavigateToToday() },
-                            contentPadding = 14.dp
-                        ) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Icon(Icons.Default.School, contentDescription = "Classes", tint = AccentPurple, modifier = Modifier.size(20.dp))
-                                Spacer(Modifier.width(6.dp))
-                                Text("Classes", fontSize = 12.sp, color = GlassDarkTextSecondary)
-                            }
-                            Spacer(Modifier.height(8.dp))
-                            Text("${classes.size} Scheduled", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = GlassDarkTextPrimary)
-                            val doneClasses = classes.count { it.status == ClassAttendanceStatus.PRESENT || it.status == ClassAttendanceStatus.WATCHED_RECORDING }
-                            Text(
-                                text = if (doneClasses > 0) "$doneClasses completed" else "0 completed yet",
-                                fontSize = 11.sp,
-                                color = if (doneClasses > 0) StatusGreen else GlassDarkTextTertiary
-                            )
-                        }
-
+                        // Deep Focus Card
                         GlassCard(
                             modifier = Modifier
                                 .weight(1f)
@@ -349,110 +354,82 @@ fun HomeScreen(
                             contentPadding = 14.dp
                         ) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
-                                Icon(Icons.Default.Timer, contentDescription = "Focus", tint = AccentBlue, modifier = Modifier.size(20.dp))
+                                Icon(Icons.Default.Timer, contentDescription = "Focus", tint = AccentCyan, modifier = Modifier.size(20.dp))
                                 Spacer(Modifier.width(6.dp))
                                 Text("Deep Focus", fontSize = 12.sp, color = GlassDarkTextSecondary)
                             }
                             Spacer(Modifier.height(8.dp))
                             val totalFocusMins = focusSessions.sumOf { it.durationMinutes }
                             Text("${totalFocusMins}m Logged", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = GlassDarkTextPrimary)
-                            Text("Start session →", fontSize = 11.sp, color = AccentBlue)
+                            Text("Start timer →", fontSize = 11.sp, color = AccentCyan)
+                        }
+
+                        // Workout / Health Card
+                        GlassCard(
+                            modifier = Modifier
+                                .weight(1f)
+                                .clickable { onNavigateToHealth() },
+                            contentPadding = 14.dp
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(Icons.Default.FitnessCenter, contentDescription = "Health", tint = StatusGreen, modifier = Modifier.size(20.dp))
+                                Spacer(Modifier.width(6.dp))
+                                Text("Energy & Gym", fontSize = 12.sp, color = GlassDarkTextSecondary)
+                            }
+                            Spacer(Modifier.height(8.dp))
+                            Text(
+                                text = if (healthLog.gymCompleted) "Completed ✓" else "Pending",
+                                fontSize = 16.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = if (healthLog.gymCompleted) StatusGreen else GlassDarkTextPrimary
+                            )
+                            Text("View routine →", fontSize = 11.sp, color = StatusGreen)
                         }
                     }
                 }
             }
 
-            // 5. CORE ACADEMIC & CAREER STATUS (GLASS)
-            item {
-                Column {
-                    Text(
-                        text = "CORE TRACKS & TARGETS",
-                        style = MaterialTheme.typography.labelLarge.copy(
-                            fontWeight = FontWeight.SemiBold,
-                            letterSpacing = 0.8.sp
-                        ),
-                        color = GlassDarkTextSecondary
-                    )
-                    Spacer(modifier = Modifier.height(10.dp))
+            // 5. CORE ACADEMIC & CAREER TRACKS
+            if (degrees.isNotEmpty()) {
+                item {
+                    Column {
+                        Text(
+                            text = "ACADEMIC BASELINES",
+                            style = MaterialTheme.typography.labelLarge.copy(
+                                fontWeight = FontWeight.SemiBold,
+                                letterSpacing = 0.8.sp
+                            ),
+                            color = GlassDarkTextSecondary
+                        )
+                        Spacer(modifier = Modifier.height(10.dp))
 
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(12.dp)
-                    ) {
-                        // ITEP Card
-                        GlassCard(
-                            modifier = Modifier
-                                .weight(1f)
-                                .clickable { onNavigateToAcademics() },
-                            contentPadding = 14.dp
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(12.dp)
                         ) {
-                            Text("ITEP Math", fontSize = 12.sp, color = GlassDarkTextSecondary)
-                            Spacer(Modifier.height(4.dp))
-                            Row(verticalAlignment = Alignment.Bottom) {
-                                Text("${itepDegree?.currentCgpa ?: 6.8}", fontSize = 22.sp, fontWeight = FontWeight.Bold, color = GlassDarkTextPrimary)
-                                Text(" / 10", fontSize = 12.sp, color = GlassDarkTextSecondary, modifier = Modifier.padding(bottom = 2.dp))
+                            degrees.take(2).forEach { deg ->
+                                GlassCard(
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .clickable { onNavigateToAcademics() },
+                                    contentPadding = 14.dp
+                                ) {
+                                    Text(deg.name, fontSize = 12.sp, color = GlassDarkTextSecondary, maxLines = 1)
+                                    Spacer(Modifier.height(4.dp))
+                                    Row(verticalAlignment = Alignment.Bottom) {
+                                        Text("${deg.currentCgpa}", fontSize = 22.sp, fontWeight = FontWeight.Bold, color = GlassDarkTextPrimary)
+                                        Text(" / 10", fontSize = 12.sp, color = GlassDarkTextSecondary, modifier = Modifier.padding(bottom = 2.dp))
+                                    }
+                                    Spacer(Modifier.height(2.dp))
+                                    Text("Target: ${deg.targetCgpa}", fontSize = 11.sp, color = AccentCyan)
+                                }
                             }
-                            Spacer(Modifier.height(2.dp))
-                            Text("Target: ${itepDegree?.targetCgpa ?: 7.5}", fontSize = 11.sp, color = StatusGreen)
-                        }
-
-                        // IITM Card
-                        GlassCard(
-                            modifier = Modifier
-                                .weight(1f)
-                                .clickable { onNavigateToAcademics() },
-                            contentPadding = 14.dp
-                        ) {
-                            Text("IITM DS", fontSize = 12.sp, color = GlassDarkTextSecondary)
-                            Spacer(Modifier.height(4.dp))
-                            Row(verticalAlignment = Alignment.Bottom) {
-                                Text("${iitmDegree?.currentCgpa ?: 5.5}", fontSize = 22.sp, fontWeight = FontWeight.Bold, color = GlassDarkTextPrimary)
-                                Text(" / 10", fontSize = 12.sp, color = GlassDarkTextSecondary, modifier = Modifier.padding(bottom = 2.dp))
-                            }
-                            Spacer(Modifier.height(2.dp))
-                            Text("Target: ${iitmDegree?.targetCgpa ?: 6.5}", fontSize = 11.sp, color = AccentBlue)
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.height(12.dp))
-
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(12.dp)
-                    ) {
-                        // Data Science Card
-                        GlassCard(
-                            modifier = Modifier
-                                .weight(1f)
-                                .clickable { onNavigateToCareer() },
-                            contentPadding = 14.dp
-                        ) {
-                            Text("Data Science", fontSize = 12.sp, color = GlassDarkTextSecondary)
-                            Spacer(Modifier.height(4.dp))
-                            Text("$dsProgress%", fontSize = 22.sp, fontWeight = FontWeight.Bold, color = AccentCyan)
-                            Spacer(Modifier.height(2.dp))
-                            val completedStages = dsRoadmap.count { it.isCompleted }
-                            Text("$completedStages of 9 stages", fontSize = 11.sp, color = GlassDarkTextSecondary)
-                        }
-
-                        // Internship Card
-                        GlassCard(
-                            modifier = Modifier
-                                .weight(1f)
-                                .clickable { onNavigateToCareer() },
-                            contentPadding = 14.dp
-                        ) {
-                            Text("Internship Hunt", fontSize = 12.sp, color = GlassDarkTextSecondary)
-                            Spacer(Modifier.height(4.dp))
-                            Text("${internships.size} Apps", fontSize = 22.sp, fontWeight = FontWeight.Bold, color = StatusTeal)
-                            Spacer(Modifier.height(2.dp))
-                            Text("Target: ₹5k-6k/mo", fontSize = 11.sp, color = StatusGreen)
                         }
                     }
                 }
             }
 
-            // 6. AI MENTOR INSIGHT CALLOUT (GLASS)
+            // 6. AI COACH INSIGHT
             item {
                 GlassCard(
                     backgroundColor = AccentBlue.copy(alpha = 0.12f),
@@ -465,7 +442,7 @@ fun HomeScreen(
                                 .size(38.dp)
                                 .clip(CircleShape)
                                 .background(StatusBlueSubtle)
-                                .border(1.dp, AccentBlue.copy(alpha = 0.4f), CircleShape),
+                                .border(1.dp, AccentCyan.copy(alpha = 0.4f), CircleShape),
                             contentAlignment = Alignment.Center
                         ) {
                             Icon(Icons.Default.Psychology, contentDescription = "AI", tint = AccentCyan, modifier = Modifier.size(20.dp))
@@ -473,7 +450,7 @@ fun HomeScreen(
                         Spacer(modifier = Modifier.width(12.dp))
                         Column(modifier = Modifier.weight(1f)) {
                             Text(
-                                text = "AI MENTOR INSIGHT",
+                                text = "NOVA AI COACH",
                                 fontSize = 11.sp,
                                 fontWeight = FontWeight.Bold,
                                 letterSpacing = 1.sp,
@@ -481,13 +458,13 @@ fun HomeScreen(
                             )
                             Spacer(modifier = Modifier.height(4.dp))
                             Text(
-                                text = "\"Focus on doing 1-2 core things with deep clarity rather than scattering energy. Let us tackle your assignments first.\"",
+                                text = "Focus on doing 1-2 core things with deep clarity rather than scattering your energy today.",
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = GlassDarkTextPrimary
                             )
                             Spacer(modifier = Modifier.height(8.dp))
                             Text(
-                                text = "Tap to talk to your AI Mentor →",
+                                text = "Ask your AI Coach anything →",
                                 fontSize = 12.sp,
                                 fontWeight = FontWeight.SemiBold,
                                 color = AccentBlue
@@ -497,7 +474,7 @@ fun HomeScreen(
                 }
             }
 
-            // 7. FAST ACTION CHIPS (GLASS)
+            // 7. FAST ACTION CHIPS
             item {
                 Column {
                     Text(
@@ -518,16 +495,16 @@ fun HomeScreen(
                             GlassActionChip(icon = Icons.Default.School, label = "Academics", color = AccentPurple, onClick = onNavigateToAcademics)
                         }
                         item {
-                            GlassActionChip(icon = Icons.Default.Work, label = "Career & Projects", color = StatusTeal, onClick = onNavigateToCareer)
+                            GlassActionChip(icon = Icons.Default.Work, label = "Career & Skills", color = StatusTeal, onClick = onNavigateToCareer)
                         }
                         item {
                             GlassActionChip(icon = Icons.Default.FitnessCenter, label = "Health & Gym", color = StatusGreen, onClick = onNavigateToHealth)
                         }
                         item {
-                            GlassActionChip(icon = Icons.Default.Timer, label = "Focus Timer", color = AccentBlue, onClick = onOpenFocusTimer)
+                            GlassActionChip(icon = Icons.Default.Timer, label = "Focus Timer", color = AccentCyan, onClick = onOpenFocusTimer)
                         }
                         item {
-                            GlassActionChip(icon = Icons.Default.Psychology, label = "AI Mentor", color = AccentCyan, onClick = onNavigateToAi)
+                            GlassActionChip(icon = Icons.Default.Psychology, label = "AI Coach", color = AccentBlue, onClick = onNavigateToAi)
                         }
                     }
                 }

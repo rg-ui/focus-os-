@@ -31,7 +31,8 @@ import com.focusos.app.ui.theme.*
 
 @Composable
 fun AcademicsScreen(
-    repository: FocusOsRepository
+    repository: FocusOsRepository,
+    onNavigateToAiMentor: () -> Unit = {}
 ) {
     val degrees by repository.degrees.collectAsState()
     val subjects by repository.subjects.collectAsState()

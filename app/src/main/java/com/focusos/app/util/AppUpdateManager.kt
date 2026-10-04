@@ -22,12 +22,14 @@ data class UpdateInfo(
     val latestVersionName: String,
     val changelog: String,
     val downloadUrl: String
-)
+) {
+    val latestVersion: String get() = latestVersionName
+}
 
 object AppUpdateManager {
 
-    const val CURRENT_VERSION_CODE = 3
-    const val CURRENT_VERSION_NAME = "1.0.2"
+    const val CURRENT_VERSION_CODE = 4
+    const val CURRENT_VERSION_NAME = "1.0.3"
 
     // GitHub raw version endpoint
     private const val VERSION_CHECK_URL =
@@ -47,7 +49,7 @@ object AppUpdateManager {
                     val json = JSONObject(body)
                     val remoteCode = json.optInt("versionCode", CURRENT_VERSION_CODE)
                     val remoteName = json.optString("versionName", CURRENT_VERSION_NAME)
-                    val changelog = json.optString("changelog", "Bug fixes and performance improvements.")
+                    val changelog = json.optString("changelog", "NOVA multi-user production update.")
                     val downloadUrl = json.optString(
                         "downloadUrl",
                         "https://raw.githubusercontent.com/rg-ui/focus-os-/main/FocusOS-v1.0.apk"
@@ -72,14 +74,18 @@ object AppUpdateManager {
         }
     }
 
+    fun downloadAndInstallApk(context: Context, downloadUrl: String, onProgress: (String) -> Unit) {
+        startDownloadAndInstall(context, downloadUrl, onProgress)
+    }
+
     fun startDownloadAndInstall(context: Context, downloadUrl: String, onProgress: (String) -> Unit) {
         onProgress("Downloading update in background...")
 
         val request = DownloadManager.Request(Uri.parse(downloadUrl))
-            .setTitle("Focus OS Update (v1.0.2)")
-            .setDescription("Downloading latest version with updated AI Mentor...")
+            .setTitle("NOVA Update")
+            .setDescription("Downloading latest version of NOVA...")
             .setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED)
-            .setDestinationInExternalPublicDir(Environment.DIRECTORY_DOWNLOADS, "FocusOS-update.apk")
+            .setDestinationInExternalPublicDir(Environment.DIRECTORY_DOWNLOADS, "NOVA-update.apk")
             .setAllowedOverMetered(true)
             .setAllowedOverRoaming(true)
 
@@ -115,7 +121,7 @@ object AppUpdateManager {
     fun installApk(context: Context) {
         val file = File(
             Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS),
-            "FocusOS-update.apk"
+            "NOVA-update.apk"
         )
         if (file.exists()) {
             val uri = FileProvider.getUriForFile(
