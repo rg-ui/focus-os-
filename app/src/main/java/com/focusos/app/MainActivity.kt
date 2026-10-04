@@ -30,7 +30,11 @@ import com.focusos.app.ui.screens.*
 import com.focusos.app.ui.theme.AccentBlue
 import com.focusos.app.ui.theme.FocusOsTheme
 import com.focusos.app.ui.theme.StatusBlueSubtle
+import com.focusos.app.ui.theme.StatusGreen
+import com.focusos.app.util.AppUpdateManager
 import com.focusos.app.util.NotificationHelper
+import com.focusos.app.util.UpdateInfo
+import kotlinx.coroutines.launch
 
 enum class NavItem(
     val title: String,
@@ -67,6 +71,22 @@ class MainActivity : ComponentActivity() {
             var showGlobalSearch by remember { mutableStateOf(false) }
             var pendingAiPrompt by remember { mutableStateOf<String?>(null) }
             var showAddTaskDialog by remember { mutableStateOf(false) }
+
+            var availableUpdate by remember { mutableStateOf<UpdateInfo?>(null) }
+            val coroutineScope = rememberCoroutineScope()
+
+            // Auto-check for OTA updates on launch
+            LaunchedEffect(Unit) {
+                coroutineScope.launch {
+                    val result = AppUpdateManager.checkForUpdates()
+                    if (result.isSuccess) {
+                        val update = result.getOrNull()
+                        if (update != null && update.hasUpdate) {
+                            availableUpdate = update
+                        }
+                    }
+                }
+            }
 
             FocusOsTheme {
                 if (showOnboarding) {
@@ -165,6 +185,51 @@ class MainActivity : ComponentActivity() {
                         }
 
                         // MODALS & OVERLAYS
+                        if (availableUpdate != null) {
+                            val update = availableUpdate!!
+                            AlertDialog(
+                                onDismissRequest = { availableUpdate = null },
+                                title = { Text("Update Available (${update.latestVersionName})") },
+                                text = {
+                                    Column {
+                                        Text(
+                                            text = update.changelog,
+                                            fontSize = 13.sp,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                        Spacer(Modifier.height(10.dp))
+                                        Text(
+                                            text = "Focus OS will download and apply this update automatically without losing your data.",
+                                            fontSize = 12.sp,
+                                            fontWeight = FontWeight.Medium,
+                                            color = StatusGreen
+                                        )
+                                    }
+                                },
+                                confirmButton = {
+                                    Button(
+                                        onClick = {
+                                            AppUpdateManager.startDownloadAndInstall(
+                                                this@MainActivity,
+                                                update.downloadUrl
+                                            ) { msg ->
+                                                Toast.makeText(this@MainActivity, msg, Toast.LENGTH_SHORT).show()
+                                            }
+                                            availableUpdate = null
+                                        },
+                                        colors = ButtonDefaults.buttonColors(containerColor = AccentBlue)
+                                    ) {
+                                        Text("Update Now")
+                                    }
+                                },
+                                dismissButton = {
+                                    TextButton(onClick = { availableUpdate = null }) {
+                                        Text("Later")
+                                    }
+                                }
+                            )
+                        }
+
                         if (showQuickActions) {
                             QuickActionSheet(
                                 onDismiss = { showQuickActions = false },

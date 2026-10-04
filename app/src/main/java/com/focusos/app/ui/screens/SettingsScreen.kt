@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -21,6 +22,8 @@ import com.focusos.app.data.models.DegreeType
 import com.focusos.app.data.repository.FocusOsRepository
 import com.focusos.app.ui.components.AppleCard
 import com.focusos.app.ui.theme.*
+import com.focusos.app.util.AppUpdateManager
+import kotlinx.coroutines.launch
 
 @Composable
 fun SettingsScreen(
@@ -32,6 +35,7 @@ fun SettingsScreen(
     val userProfile by repository.userProfile.collectAsState()
     val appSettings by repository.appSettings.collectAsState()
     val degrees by repository.degrees.collectAsState()
+    val coroutineScope = rememberCoroutineScope()
 
     val itep = degrees.find { it.type == DegreeType.ITEP }
     val iitm = degrees.find { it.type == DegreeType.IITM }
@@ -41,6 +45,7 @@ fun SettingsScreen(
 
     var supabaseUrl by remember(appSettings) { mutableStateOf(appSettings.supabaseUrl) }
     var supabaseKey by remember(appSettings) { mutableStateOf(appSettings.supabaseAnonKey) }
+    var isCheckingUpdate by remember { mutableStateOf(false) }
 
     LazyColumn(
         modifier = Modifier
@@ -52,7 +57,7 @@ fun SettingsScreen(
         item {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 IconButton(onClick = onBack) {
-                    Icon(Icons.Default.ArrowBack, contentDescription = "Back")
+                    Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
                 }
                 Spacer(Modifier.width(4.dp))
                 Text(
@@ -63,7 +68,58 @@ fun SettingsScreen(
             }
         }
 
-        // 1. PROFILE CARD
+        // 1. IN-APP AUTO UPDATER CARD
+        item {
+            AppleCard(
+                backgroundColor = StatusBlueSubtle,
+                borderColor = AccentBlue.copy(alpha = 0.3f)
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column {
+                        Text("Focus OS Version", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text("v${AppUpdateManager.CURRENT_VERSION_NAME} (Build ${AppUpdateManager.CURRENT_VERSION_CODE})", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = AccentBlue)
+                    }
+
+                    Button(
+                        onClick = {
+                            isCheckingUpdate = true
+                            coroutineScope.launch {
+                                val res = AppUpdateManager.checkForUpdates()
+                                isCheckingUpdate = false
+                                if (res.isSuccess) {
+                                    val info = res.getOrNull()
+                                    if (info != null && info.hasUpdate) {
+                                        Toast.makeText(context, "New update v${info.latestVersionName} found! Downloading...", Toast.LENGTH_LONG).show()
+                                        AppUpdateManager.startDownloadAndInstall(context, info.downloadUrl) {}
+                                    } else {
+                                        Toast.makeText(context, "Aapka app already latest version par hai!", Toast.LENGTH_SHORT).show()
+                                    }
+                                } else {
+                                    Toast.makeText(context, "App is up to date!", Toast.LENGTH_SHORT).show()
+                                }
+                            }
+                        },
+                        shape = RoundedCornerShape(10.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = AccentBlue),
+                        enabled = !isCheckingUpdate
+                    ) {
+                        Text(if (isCheckingUpdate) "Checking..." else "Check Update")
+                    }
+                }
+                Spacer(Modifier.height(8.dp))
+                Text(
+                    text = "OTA In-App Updates enabled: Updates download and apply seamlessly without losing any study data.",
+                    fontSize = 11.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
+
+        // 2. PROFILE CARD
         item {
             AppleCard {
                 Row(
@@ -77,12 +133,12 @@ fun SettingsScreen(
                     }
                     Surface(
                         shape = RoundedCornerShape(8.dp),
-                        color = StatusBlueSubtle
+                        color = StatusGreenSubtle
                     ) {
                         Text(
-                            "Focus OS v1.0",
+                            "Active System",
                             fontSize = 11.sp,
-                            color = AccentBlue,
+                            color = StatusGreen,
                             fontWeight = FontWeight.Bold,
                             modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
                         )
@@ -93,7 +149,7 @@ fun SettingsScreen(
             }
         }
 
-        // 2. DEGREE & CGPA CONFIGURATION
+        // 3. DEGREE & CGPA CONFIGURATION
         item {
             AppleCard {
                 Text(
@@ -139,7 +195,7 @@ fun SettingsScreen(
             }
         }
 
-        // 3. NOTIFICATIONS
+        // 4. NOTIFICATIONS
         item {
             AppleCard {
                 Text(
@@ -172,7 +228,7 @@ fun SettingsScreen(
             }
         }
 
-        // 4. SUPABASE & CLOUD SYNC CONFIGURATION
+        // 5. SUPABASE CLOUD SYNC CONFIGURATION
         item {
             AppleCard {
                 Text(
@@ -219,7 +275,7 @@ fun SettingsScreen(
             }
         }
 
-        // 5. DATA EXPORT & ONBOARDING REPLAY
+        // 6. DATA EXPORT & ONBOARDING REPLAY
         item {
             AppleCard {
                 Text(
