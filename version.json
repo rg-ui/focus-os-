@@ -1,6 +1,6 @@
 {
-  "versionCode": 1,
-  "versionName": "1.0.0",
-  "changelog": "FOCUS OS v1.0 - In-app auto updater active, Supabase cloud connected, AI Mentor live.",
+  "versionCode": 2,
+  "versionName": "1.0.1",
+  "changelog": "✨ New AI Mentor Chat UI: Apple iMessage style bubbles, Live Context Header (ITEP 6.8 & IITM 5.5), Instant Prompt Chips, One-Tap Copy, and Smooth Keyboard Alignment.",
   "downloadUrl": "https://raw.githubusercontent.com/rg-ui/focus-os-/main/FocusOS-v1.0.apk"
 }

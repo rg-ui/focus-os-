@@ -26,8 +26,8 @@ data class UpdateInfo(
 
 object AppUpdateManager {
 
-    const val CURRENT_VERSION_CODE = 1
-    const val CURRENT_VERSION_NAME = "1.0.0"
+    const val CURRENT_VERSION_CODE = 2
+    const val CURRENT_VERSION_NAME = "1.0.1"
 
     // GitHub raw version endpoint
     private const val VERSION_CHECK_URL =
@@ -76,8 +76,8 @@ object AppUpdateManager {
         onProgress("Downloading update in background...")
 
         val request = DownloadManager.Request(Uri.parse(downloadUrl))
-            .setTitle("Focus OS Update")
-            .setDescription("Downloading latest version...")
+            .setTitle("Focus OS Update (v1.0.1)")
+            .setDescription("Downloading latest version with updated AI Mentor...")
             .setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED)
             .setDestinationInExternalPublicDir(Environment.DIRECTORY_DOWNLOADS, "FocusOS-update.apk")
             .setAllowedOverMetered(true)
