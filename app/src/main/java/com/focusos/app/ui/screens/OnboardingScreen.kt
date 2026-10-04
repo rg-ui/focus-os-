@@ -1,23 +1,25 @@
 package com.focusos.app.ui.screens
 
-import androidx.compose.animation.AnimatedContent
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.focusos.app.ui.components.AppleCard
+import com.focusos.app.ui.components.GlassBackgroundBox
+import com.focusos.app.ui.components.GlassCard
 import com.focusos.app.ui.theme.*
 
 @Composable
@@ -26,71 +28,78 @@ fun OnboardingScreen(
 ) {
     var step by remember { mutableStateOf(1) }
 
-    Surface(
-        modifier = Modifier.fillMaxSize(),
-        color = MaterialTheme.colorScheme.background
-    ) {
+    GlassBackgroundBox {
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(24.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.SpaceBetween
+            verticalArrangement = Arrangement.SpaceBetween,
+            horizontalAlignment = Alignment.CenterHorizontally
         ) {
             // Top Step Indicator
             Row(
                 horizontalArrangement = Arrangement.spacedBy(6.dp),
-                modifier = Modifier.padding(top = 20.dp)
+                modifier = Modifier
+                    .padding(top = 16.dp)
+                    .fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
             ) {
                 (1..6).forEach { i ->
+                    val isPastOrCurrent = i <= step
                     Box(
                         modifier = Modifier
-                            .size(width = 36.dp, height = 4.dp)
+                            .weight(1f)
+                            .height(4.dp)
                             .clip(RoundedCornerShape(2.dp))
-                            .background(if (i <= step) AccentBlue else MaterialTheme.colorScheme.surfaceVariant)
+                            .background(if (isPastOrCurrent) AccentCyan else Color(0x20FFFFFF))
                     )
                 }
             }
 
-            // Step Content
-            AnimatedContent(targetState = step, label = "onboardingSteps") { currentStep ->
-                Column(
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    when (currentStep) {
-                        1 -> {
+            // Main Content Area
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxWidth(),
+                contentAlignment = Alignment.Center
+            ) {
+                when (step) {
+                    1 -> {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
                             Box(
                                 modifier = Modifier
-                                    .size(84.dp)
+                                    .size(80.dp)
                                     .clip(CircleShape)
-                                    .background(StatusBlueSubtle),
+                                    .background(StatusBlueSubtle)
+                                    .border(1.dp, AccentBlue.copy(alpha = 0.5f), CircleShape),
                                 contentAlignment = Alignment.Center
                             ) {
-                                Icon(Icons.Default.SelfImprovement, contentDescription = "Focus", tint = AccentBlue, modifier = Modifier.size(44.dp))
+                                Text("🎯", fontSize = 38.sp)
                             }
                             Spacer(Modifier.height(24.dp))
-                            Text("FOCUS OS", style = MaterialTheme.typography.displayLarge, color = AccentBlue)
-                            Spacer(Modifier.height(8.dp))
                             Text(
-                                "“Build a better life, one day at a time.”",
-                                style = MaterialTheme.typography.titleLarge,
-                                textAlign = TextAlign.Center,
-                                color = MaterialTheme.colorScheme.onSurface
+                                "Welcome to Focus OS",
+                                style = MaterialTheme.typography.displayLarge.copy(
+                                    fontWeight = FontWeight.Bold,
+                                    letterSpacing = (-0.5).sp
+                                ),
+                                color = GlassDarkTextPrimary
                             )
                             Spacer(Modifier.height(14.dp))
                             Text(
                                 "A calm, private operating system designed to prevent overwhelm while managing dual degrees, data science, and career.",
                                 textAlign = TextAlign.Center,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                color = GlassDarkTextSecondary,
                                 style = MaterialTheme.typography.bodyLarge
                             )
                         }
+                    }
 
-                        2 -> {
-                            Text("Select Your Core Focus Areas", style = MaterialTheme.typography.headlineMedium, textAlign = TextAlign.Center)
-                            Spacer(Modifier.height(8.dp))
-                            Text("We follow the Max 2 Major Goals principle to protect your focus.", textAlign = TextAlign.Center, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    2 -> {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Text("Core Focus Areas", style = MaterialTheme.typography.headlineMedium.copy(fontWeight = FontWeight.Bold), color = GlassDarkTextPrimary, textAlign = TextAlign.Center)
+                            Spacer(Modifier.height(6.dp))
+                            Text("We follow the Max 2 Major Goals principle to protect your deep focus.", textAlign = TextAlign.Center, color = GlassDarkTextSecondary)
                             Spacer(Modifier.height(20.dp))
                             val goals = listOf(
                                 "🎓 Academic CGPA Recovery (Primary)",
@@ -100,76 +109,88 @@ fun OnboardingScreen(
                                 "🔭 Passive GATE / JAM Exploration"
                             )
                             goals.forEach { goal ->
-                                AppleCard(modifier = Modifier.padding(vertical = 4.dp)) {
-                                    Text(goal, fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
+                                GlassCard(
+                                    modifier = Modifier.padding(vertical = 4.dp),
+                                    contentPadding = 12.dp
+                                ) {
+                                    Text(goal, fontWeight = FontWeight.SemiBold, fontSize = 13.sp, color = GlassDarkTextPrimary)
                                 }
                             }
                         }
+                    }
 
-                        3 -> {
-                            Text("Your Dual Degree Profile", style = MaterialTheme.typography.headlineMedium, textAlign = TextAlign.Center)
-                            Spacer(Modifier.height(8.dp))
-                            Text("Already configured with your real academic context:", textAlign = TextAlign.Center, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    3 -> {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Text("Dual Degree Context", style = MaterialTheme.typography.headlineMedium.copy(fontWeight = FontWeight.Bold), color = GlassDarkTextPrimary, textAlign = TextAlign.Center)
+                            Spacer(Modifier.height(6.dp))
+                            Text("Configured with your academic structure:", textAlign = TextAlign.Center, color = GlassDarkTextSecondary)
                             Spacer(Modifier.height(20.dp))
-                            AppleCard(borderColor = StatusPurple.copy(alpha = 0.4f)) {
-                                Text("ITEP — B.Sc. B.Ed. Mathematics", fontWeight = FontWeight.Bold, color = StatusPurple)
-                                Text("Year 2 • Current CGPA: 6.8 • Target: 7.5", fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            GlassCard(borderGradient = Brush.linearGradient(listOf(AccentPurple.copy(alpha = 0.5f), Color(0x15FFFFFF)))) {
+                                Text("ITEP — B.Sc. B.Ed. Mathematics", fontWeight = FontWeight.Bold, color = AccentPurple)
+                                Text("Year 2 • Current CGPA: 6.8 • Target: 7.5", fontSize = 13.sp, color = GlassDarkTextSecondary)
                             }
                             Spacer(Modifier.height(10.dp))
-                            AppleCard(borderColor = AccentBlue.copy(alpha = 0.4f)) {
+                            GlassCard(borderGradient = Brush.linearGradient(listOf(AccentBlue.copy(alpha = 0.5f), Color(0x15FFFFFF)))) {
                                 Text("IIT Madras — BS Data Science", fontWeight = FontWeight.Bold, color = AccentBlue)
-                                Text("Year 1 • Current CGPA: 5.5 • Target: 6.5+", fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                Text("Year 1 • Current CGPA: 5.5 • Target: 6.5+", fontSize = 13.sp, color = GlassDarkTextSecondary)
                             }
                         }
+                    }
 
-                        4 -> {
-                            Text("Current Primary Goals", style = MaterialTheme.typography.headlineMedium, textAlign = TextAlign.Center)
-                            Spacer(Modifier.height(8.dp))
-                            Text("No simultaneous GATE + JAM + SSC burden.", textAlign = TextAlign.Center, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    4 -> {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Text("Current Priorities", style = MaterialTheme.typography.headlineMedium.copy(fontWeight = FontWeight.Bold), color = GlassDarkTextPrimary, textAlign = TextAlign.Center)
+                            Spacer(Modifier.height(6.dp))
+                            Text("No simultaneous GATE + JAM + SSC burden.", textAlign = TextAlign.Center, color = GlassDarkTextSecondary)
                             Spacer(Modifier.height(20.dp))
-                            AppleCard {
+                            GlassCard {
                                 Text("🎯 Major Goal 1: CGPA Recovery", fontWeight = FontWeight.Bold, color = StatusGreen)
-                                Text("Consistent assignment submissions and recovery of missed sessions.", fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                Text("Consistent assignment submissions and recovery of missed sessions.", fontSize = 13.sp, color = GlassDarkTextSecondary)
                             }
                             Spacer(Modifier.height(10.dp))
-                            AppleCard {
-                                Text("🎯 Major Goal 2: Data Science Internship", fontWeight = FontWeight.Bold, color = AccentBlue)
-                                Text("Master Python/Pandas/SQL, finish Student Performance Analyzer project, secure ₹5k-6k/month role.", fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            GlassCard {
+                                Text("🎯 Major Goal 2: Data Science Internship", fontWeight = FontWeight.Bold, color = AccentCyan)
+                                Text("Master Python/Pandas/SQL, finish Student Performance Analyzer project, secure ₹5k-6k/month role.", fontSize = 13.sp, color = GlassDarkTextSecondary)
                             }
                         }
+                    }
 
-                        5 -> {
-                            Text("Smart Non-Spamming Notifications", style = MaterialTheme.typography.headlineMedium, textAlign = TextAlign.Center)
-                            Spacer(Modifier.height(8.dp))
-                            Text("Guaranteed max 3-5 thoughtful prompts per day.", textAlign = TextAlign.Center, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    5 -> {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Text("Smart Non-Spam Notifications", style = MaterialTheme.typography.headlineMedium.copy(fontWeight = FontWeight.Bold), color = GlassDarkTextPrimary, textAlign = TextAlign.Center)
+                            Spacer(Modifier.height(6.dp))
+                            Text("Guaranteed max 3-5 thoughtful prompts per day.", textAlign = TextAlign.Center, color = GlassDarkTextSecondary)
                             Spacer(Modifier.height(20.dp))
-                            AppleCard {
-                                Text("🌅 07:30 AM — Morning AI Brief & Top 3", fontWeight = FontWeight.SemiBold)
-                                Spacer(Modifier.height(6.dp))
-                                Text("📚 1h before — Class & Deadline reminders", fontWeight = FontWeight.SemiBold)
-                                Spacer(Modifier.height(6.dp))
-                                Text("🌙 09:30 PM — Evening Reflection Check-in", fontWeight = FontWeight.SemiBold)
+                            GlassCard {
+                                Text("🌅 07:30 AM — Morning AI Brief & Top 3", fontWeight = FontWeight.SemiBold, color = GlassDarkTextPrimary)
+                                Spacer(Modifier.height(8.dp))
+                                Text("📚 1h before — Class & Deadline reminders", fontWeight = FontWeight.SemiBold, color = GlassDarkTextPrimary)
+                                Spacer(Modifier.height(8.dp))
+                                Text("🌙 09:30 PM — Evening Reflection Check-in", fontWeight = FontWeight.SemiBold, color = GlassDarkTextPrimary)
                             }
                         }
+                    }
 
-                        6 -> {
+                    6 -> {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
                             Box(
                                 modifier = Modifier
                                     .size(84.dp)
                                     .clip(CircleShape)
-                                    .background(StatusGreenSubtle),
+                                    .background(StatusGreenSubtle)
+                                    .border(1.dp, StatusGreen.copy(alpha = 0.5f), CircleShape),
                                 contentAlignment = Alignment.Center
                             ) {
                                 Icon(Icons.Default.CheckCircle, contentDescription = "Ready", tint = StatusGreen, modifier = Modifier.size(48.dp))
                             }
                             Spacer(Modifier.height(24.dp))
-                            Text("Your Dashboard is Ready", style = MaterialTheme.typography.displayLarge, color = MaterialTheme.colorScheme.onSurface)
+                            Text("Your Dashboard is Ready", style = MaterialTheme.typography.displayLarge.copy(fontWeight = FontWeight.Bold), color = GlassDarkTextPrimary)
                             Spacer(Modifier.height(10.dp))
                             Text(
-                                "Welcome to your personal operating system, Ravi. Let's make today count.",
+                                "Welcome to your personal operating system, Ravi. Let us make today count.",
                                 textAlign = TextAlign.Center,
                                 style = MaterialTheme.typography.bodyLarge,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                color = GlassDarkTextSecondary
                             )
                         }
                     }
@@ -186,7 +207,7 @@ fun OnboardingScreen(
             ) {
                 if (step > 1) {
                     TextButton(onClick = { step-- }) {
-                        Text("Back", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text("Back", color = GlassDarkTextSecondary)
                     }
                 } else {
                     Spacer(Modifier.width(60.dp))

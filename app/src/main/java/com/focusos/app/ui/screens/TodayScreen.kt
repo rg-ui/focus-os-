@@ -1,6 +1,7 @@
 package com.focusos.app.ui.screens
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -17,14 +18,16 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.focusos.app.data.models.*
 import com.focusos.app.data.repository.FocusOsRepository
-import com.focusos.app.ui.components.AppleCard
 import com.focusos.app.ui.components.CategoryBadge
+import com.focusos.app.ui.components.GlassBackgroundBox
+import com.focusos.app.ui.components.GlassCard
 import com.focusos.app.ui.components.PriorityBadge
 import com.focusos.app.ui.theme.*
 
@@ -54,273 +57,221 @@ fun TodayScreen(
         focusSessions.sumOf { it.durationMinutes }
     }
 
-    LazyColumn(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(horizontal = 16.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp),
-        contentPadding = PaddingValues(top = 16.dp, bottom = 100.dp)
-    ) {
-        // 1. HEADER & DATE
-        item {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Column {
-                    Text(
-                        text = "Today's Timeline",
-                        style = MaterialTheme.typography.headlineLarge,
-                        color = MaterialTheme.colorScheme.onBackground
-                    )
-                    Text(
-                        text = "Calm execution without overplanning",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-
-                IconButton(
-                    onClick = { showAddTaskDialog = true },
-                    modifier = Modifier
-                        .clip(CircleShape)
-                        .background(StatusBlueSubtle)
-                ) {
-                    Icon(Icons.Default.Add, contentDescription = "Add Task", tint = AccentBlue)
-                }
-            }
-        }
-
-        // 2. FOCUS TIMER BANNER
-        item {
-            AppleCard(
-                backgroundColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f),
-                borderColor = AccentBlue.copy(alpha = 0.3f),
-                onClick = onOpenFocusTimer
-            ) {
+    GlassBackgroundBox {
+        LazyColumn(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(horizontal = 16.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp),
+            contentPadding = PaddingValues(top = 16.dp, bottom = 100.dp)
+        ) {
+            // 1. HEADER & DATE
+            item {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Box(
-                            modifier = Modifier
-                                .size(42.dp)
-                                .clip(CircleShape)
-                                .background(StatusBlueSubtle),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(Icons.Default.Timer, contentDescription = "Timer", tint = AccentBlue)
-                        }
-                        Spacer(modifier = Modifier.width(12.dp))
-                        Column {
-                            Text(
-                                text = "Focus Sessions",
-                                style = MaterialTheme.typography.titleMedium,
-                                color = MaterialTheme.colorScheme.onSurface
-                            )
-                            Text(
-                                text = "${todayFocusMinutes}m focused today • 25 / 50 / 90m blocks",
-                                fontSize = 12.sp,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
+                    Column {
+                        Text(
+                            text = "Today Timeline",
+                            style = MaterialTheme.typography.headlineLarge.copy(
+                                fontWeight = FontWeight.Bold,
+                                letterSpacing = (-0.5).sp
+                            ),
+                            color = GlassDarkTextPrimary
+                        )
+                        Spacer(modifier = Modifier.height(2.dp))
+                        Text(
+                            text = "Calm execution without overplanning",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = GlassDarkTextSecondary
+                        )
                     }
 
-                    Button(
-                        onClick = onOpenFocusTimer,
-                        shape = RoundedCornerShape(10.dp),
-                        colors = ButtonDefaults.buttonColors(containerColor = AccentBlue),
-                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(StatusBlueSubtle)
+                            .border(1.dp, AccentBlue.copy(alpha = 0.4f), RoundedCornerShape(12.dp))
+                            .clickable { showAddTaskDialog = true }
+                            .padding(horizontal = 12.dp, vertical = 8.dp)
                     ) {
-                        Text("Start", fontSize = 12.sp)
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(Icons.Default.Add, contentDescription = "Add", tint = AccentBlue, modifier = Modifier.size(16.dp))
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text("New Task", fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = AccentBlue)
+                        }
                     }
                 }
             }
-        }
 
-        // 3. SCHEDULED CLASSES
-        item {
-            Column {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
+            // 2. FOCUS SUMMARY PILL
+            item {
+                GlassCard(
+                    backgroundColor = AccentBlue.copy(alpha = 0.08f),
+                    borderGradient = GlassAccentBorderGradient,
+                    onClick = onOpenFocusTimer
                 ) {
-                    Text(
-                        text = "CLASSES & SESSIONS",
-                        style = MaterialTheme.typography.labelLarge,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                    Text(
-                        text = "${classes.count { it.status == ClassAttendanceStatus.PRESENT }} present",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = StatusGreen
-                    )
-                }
-
-                Spacer(modifier = Modifier.height(10.dp))
-
-                classes.forEach { session ->
-                    ClassSessionCard(
-                        session = session,
-                        onStatusChange = { newStatus ->
-                            repository.markClassStatus(session.id, newStatus)
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Box(
+                                modifier = Modifier
+                                    .size(36.dp)
+                                    .clip(CircleShape)
+                                    .background(StatusBlueSubtle)
+                                    .border(1.dp, AccentBlue.copy(alpha = 0.35f), CircleShape),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(Icons.Default.Timer, contentDescription = "Timer", tint = AccentBlue, modifier = Modifier.size(20.dp))
+                            }
+                            Spacer(modifier = Modifier.width(12.dp))
+                            Column {
+                                Text(
+                                    text = if (todayFocusMinutes > 0) "${todayFocusMinutes}m Deep Focus Logged" else "Start Deep Focus Timer",
+                                    fontSize = 14.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = GlassDarkTextPrimary
+                                )
+                                Text(
+                                    text = "Tap to launch 25m / 50m distraction-free block",
+                                    fontSize = 11.sp,
+                                    color = GlassDarkTextSecondary
+                                )
+                            }
                         }
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
+
+                        Icon(Icons.Default.PlayArrow, contentDescription = "Start", tint = AccentCyan, modifier = Modifier.size(24.dp))
+                    }
                 }
             }
-        }
 
-        // 4. TASKS SECTION WITH FILTER TABS
-        item {
-            Column {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        text = "TASKS & ACTION ITEMS",
-                        style = MaterialTheme.typography.labelLarge,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                    Text(
-                        text = "${filteredTasks.count { it.isCompleted }}/${filteredTasks.size} done",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
+            // 3. TODAY CLASSES & SESSIONS
+            item {
+                Column {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "TODAY CLASSES",
+                            style = MaterialTheme.typography.labelLarge.copy(
+                                fontWeight = FontWeight.SemiBold,
+                                letterSpacing = 0.8.sp
+                            ),
+                            color = GlassDarkTextSecondary
+                        )
+                        Text(
+                            text = "${classes.count { it.status == ClassAttendanceStatus.PRESENT || it.status == ClassAttendanceStatus.WATCHED_RECORDING }} / ${classes.size} done",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = AccentCyan
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(10.dp))
+
+                    GlassCard {
+                        classes.forEachIndexed { index, session ->
+                            ClassSessionRow(
+                                session = session,
+                                onStatusChange = { newStatus ->
+                                    repository.markClassAttendance(session.id, newStatus)
+                                }
+                            )
+                            if (index < classes.size - 1) {
+                                HorizontalDivider(
+                                    color = Color(0x15FFFFFF),
+                                    thickness = 0.5.dp
+                                )
+                            }
+                        }
+                    }
                 }
+            }
 
-                Spacer(modifier = Modifier.height(10.dp))
-
-                // Filter tabs
+            // 4. TASK CATEGORY FILTER CHIPS
+            item {
                 LazyRow(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    val tabs = listOf("All", "Academics", "Career", "Health")
-                    items(tabs) { tab ->
-                        val isSelected = selectedFilter == tab
-                        Surface(
-                            onClick = { selectedFilter = tab },
-                            shape = RoundedCornerShape(10.dp),
-                            color = if (isSelected) AccentBlue else MaterialTheme.colorScheme.surfaceVariant,
-                            modifier = Modifier.height(34.dp)
-                        ) {
-                            Box(
-                                modifier = Modifier.padding(horizontal = 14.dp),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Text(
-                                    text = tab,
-                                    fontSize = 12.sp,
-                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                                    color = if (isSelected) Color.White else MaterialTheme.colorScheme.onSurface
-                                )
-                            }
-                        }
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(12.dp))
-
-                AppleCard {
-                    if (filteredTasks.isEmpty()) {
+                    val filters = listOf("All", "Academics", "Career", "Health")
+                    items(filters) { filter ->
+                        val isSelected = selectedFilter == filter
+                        val shape = RoundedCornerShape(12.dp)
                         Box(
                             modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(vertical = 20.dp),
-                            contentAlignment = Alignment.Center
+                                .clip(shape)
+                                .background(if (isSelected) AccentBlue.copy(alpha = 0.25f) else Color(0x12FFFFFF))
+                                .border(
+                                    1.dp,
+                                    if (isSelected) AccentBlue.copy(alpha = 0.6f) else Color(0x18FFFFFF),
+                                    shape
+                                )
+                                .clickable { selectedFilter = filter }
+                                .padding(horizontal = 14.dp, vertical = 8.dp)
                         ) {
                             Text(
-                                text = "No tasks in this category",
-                                fontSize = 13.sp,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                text = filter,
+                                fontSize = 12.sp,
+                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                                color = if (isSelected) AccentCyan else GlassDarkTextSecondary
                             )
-                        }
-                    } else {
-                        filteredTasks.forEachIndexed { index, task ->
-                            TaskRow(
-                                task = task,
-                                onToggle = { repository.toggleTask(task.id) }
-                            )
-                            if (index < filteredTasks.size - 1) {
-                                HorizontalDivider(
-                                    color = MaterialTheme.colorScheme.outline.copy(alpha = 0.2f),
-                                    thickness = 0.5.dp
-                                )
-                            }
                         }
                     }
                 }
             }
-        }
 
-        // 5. TODAY'S FOCUS HISTORY
-        if (focusSessions.isNotEmpty()) {
+            // 5. TASKS CHECKLIST
             item {
                 Column {
-                    Text(
-                        text = "COMPLETED FOCUS SESSIONS",
-                        style = MaterialTheme.typography.labelLarge,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "ACTION TASKS",
+                            style = MaterialTheme.typography.labelLarge.copy(
+                                fontWeight = FontWeight.SemiBold,
+                                letterSpacing = 0.8.sp
+                            ),
+                            color = GlassDarkTextSecondary
+                        )
+                        Text(
+                            text = "${filteredTasks.count { it.isCompleted }} / ${filteredTasks.size} Done",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = StatusGreen
+                        )
+                    }
+
                     Spacer(modifier = Modifier.height(10.dp))
 
-                    AppleCard {
-                        focusSessions.forEachIndexed { index, session ->
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(vertical = 8.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Box(
-                                    modifier = Modifier
-                                        .size(36.dp)
-                                        .clip(CircleShape)
-                                        .background(StatusGreenSubtle),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Icon(
-                                        Icons.Default.Check,
-                                        contentDescription = "Done",
-                                        tint = StatusGreen,
-                                        modifier = Modifier.size(18.dp)
+                    GlassCard {
+                        if (filteredTasks.isEmpty()) {
+                            Text(
+                                text = "No tasks found in this filter.",
+                                fontSize = 13.sp,
+                                color = GlassDarkTextSecondary,
+                                modifier = Modifier.padding(vertical = 12.dp)
+                            )
+                        } else {
+                            filteredTasks.forEachIndexed { index, task ->
+                                TaskRow(
+                                    task = task,
+                                    onToggle = { repository.toggleTask(task.id) }
+                                )
+                                if (index < filteredTasks.size - 1) {
+                                    HorizontalDivider(
+                                        color = Color(0x15FFFFFF),
+                                        thickness = 0.5.dp
                                     )
                                 }
-                                Spacer(modifier = Modifier.width(12.dp))
-                                Column(modifier = Modifier.weight(1f)) {
-                                    Text(
-                                        text = session.taskTitle,
-                                        fontSize = 14.sp,
-                                        fontWeight = FontWeight.SemiBold,
-                                        color = MaterialTheme.colorScheme.onSurface
-                                    )
-                                    if (session.accomplishmentNotes.isNotBlank()) {
-                                        Text(
-                                            text = "\"${session.accomplishmentNotes}\"",
-                                            fontSize = 12.sp,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                                        )
-                                    }
-                                }
-                                Text(
-                                    text = "${session.durationMinutes} min",
-                                    fontSize = 13.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = AccentBlue
-                                )
-                            }
-                            if (index < focusSessions.size - 1) {
-                                HorizontalDivider(
-                                    color = MaterialTheme.colorScheme.outline.copy(alpha = 0.2f),
-                                    thickness = 0.5.dp
-                                )
                             }
                         }
                     }
@@ -341,122 +292,108 @@ fun TodayScreen(
 }
 
 @Composable
-private fun ClassSessionCard(
+private fun ClassSessionRow(
     session: ClassSession,
     onStatusChange: (ClassAttendanceStatus) -> Unit
 ) {
     var expanded by remember { mutableStateOf(false) }
 
-    AppleCard(contentPadding = 14.dp) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Column(modifier = Modifier.weight(1f)) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    CategoryBadge(
-                        category = if (session.degreeType == DegreeType.IITM) TaskCategory.IITM else TaskCategory.ITEP
-                    )
-                    Text(
-                        text = session.timeSlot,
-                        fontSize = 12.sp,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-                Spacer(modifier = Modifier.height(4.dp))
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 10.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.SpaceBetween
+    ) {
+        Column(modifier = Modifier.weight(1f)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
                     text = session.subjectName,
-                    fontSize = 15.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onSurface
-                )
-                Text(
-                    text = session.topic,
-                    fontSize = 12.sp,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    style = MaterialTheme.typography.bodyLarge.copy(
+                        fontWeight = FontWeight.SemiBold
+                    ),
+                    color = GlassDarkTextPrimary
                 )
             }
+            Spacer(modifier = Modifier.height(2.dp))
+            Text(
+                text = "${session.timeSlot} • ${session.topic}",
+                fontSize = 12.sp,
+                color = GlassDarkTextSecondary
+            )
+        }
 
-            Box {
-                Surface(
-                    onClick = { expanded = true },
-                    shape = RoundedCornerShape(8.dp),
-                    color = when (session.status) {
-                        ClassAttendanceStatus.PRESENT -> StatusGreenSubtle
-                        ClassAttendanceStatus.ABSENT -> StatusRedSubtle
-                        ClassAttendanceStatus.WATCHED_RECORDING -> StatusBlueSubtle
-                        ClassAttendanceStatus.NEED_REVISION -> StatusOrangeSubtle
-                        ClassAttendanceStatus.UPCOMING -> MaterialTheme.colorScheme.surfaceVariant
-                    }
-                ) {
-                    Row(
-                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            text = when (session.status) {
-                                ClassAttendanceStatus.PRESENT -> "Present"
-                                ClassAttendanceStatus.ABSENT -> "Missed"
-                                ClassAttendanceStatus.WATCHED_RECORDING -> "Recorded"
-                                ClassAttendanceStatus.NEED_REVISION -> "Revise"
-                                ClassAttendanceStatus.UPCOMING -> "Upcoming"
-                            },
-                            fontSize = 11.sp,
-                            fontWeight = FontWeight.SemiBold,
-                            color = when (session.status) {
-                                ClassAttendanceStatus.PRESENT -> StatusGreen
-                                ClassAttendanceStatus.ABSENT -> StatusRed
-                                ClassAttendanceStatus.WATCHED_RECORDING -> AccentBlue
-                                ClassAttendanceStatus.NEED_REVISION -> StatusOrange
-                                ClassAttendanceStatus.UPCOMING -> MaterialTheme.colorScheme.onSurfaceVariant
-                            }
-                        )
-                        Icon(
-                            Icons.Default.ArrowDropDown,
-                            contentDescription = "Dropdown",
-                            modifier = Modifier.size(16.dp),
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                }
+        Box {
+            val statusColor = when (session.status) {
+                ClassAttendanceStatus.PRESENT -> StatusGreen
+                ClassAttendanceStatus.ABSENT -> StatusRed
+                ClassAttendanceStatus.WATCHED_RECORDING -> AccentBlue
+                ClassAttendanceStatus.NEED_REVISION -> StatusOrange
+                ClassAttendanceStatus.UPCOMING -> GlassDarkTextSecondary
+            }
 
-                DropdownMenu(
-                    expanded = expanded,
-                    onDismissRequest = { expanded = false }
-                ) {
-                    DropdownMenuItem(
-                        text = { Text("Mark Present") },
-                        onClick = {
-                            onStatusChange(ClassAttendanceStatus.PRESENT)
-                            expanded = false
-                        }
+            Box(
+                modifier = Modifier
+                    .clip(RoundedCornerShape(8.dp))
+                    .background(statusColor.copy(alpha = 0.15f))
+                    .border(1.dp, statusColor.copy(alpha = 0.4f), RoundedCornerShape(8.dp))
+                    .clickable { expanded = true }
+                    .padding(horizontal = 8.dp, vertical = 4.dp)
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        text = when (session.status) {
+                            ClassAttendanceStatus.PRESENT -> "Attended"
+                            ClassAttendanceStatus.ABSENT -> "Missed"
+                            ClassAttendanceStatus.WATCHED_RECORDING -> "Watched"
+                            ClassAttendanceStatus.NEED_REVISION -> "Revise"
+                            ClassAttendanceStatus.UPCOMING -> "Upcoming"
+                        },
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = statusColor
                     )
-                    DropdownMenuItem(
-                        text = { Text("Mark Missed (Auto Catch-up)") },
-                        onClick = {
-                            onStatusChange(ClassAttendanceStatus.ABSENT)
-                            expanded = false
-                        }
-                    )
-                    DropdownMenuItem(
-                        text = { Text("Watched Recording") },
-                        onClick = {
-                            onStatusChange(ClassAttendanceStatus.WATCHED_RECORDING)
-                            expanded = false
-                        }
-                    )
-                    DropdownMenuItem(
-                        text = { Text("Needs Revision") },
-                        onClick = {
-                            onStatusChange(ClassAttendanceStatus.NEED_REVISION)
-                            expanded = false
-                        }
+                    Icon(
+                        Icons.Default.ArrowDropDown,
+                        contentDescription = "Dropdown",
+                        modifier = Modifier.size(16.dp),
+                        tint = statusColor
                     )
                 }
+            }
+
+            DropdownMenu(
+                expanded = expanded,
+                onDismissRequest = { expanded = false }
+            ) {
+                DropdownMenuItem(
+                    text = { Text("Mark Present") },
+                    onClick = {
+                        onStatusChange(ClassAttendanceStatus.PRESENT)
+                        expanded = false
+                    }
+                )
+                DropdownMenuItem(
+                    text = { Text("Mark Missed (Auto Catch-up)") },
+                    onClick = {
+                        onStatusChange(ClassAttendanceStatus.ABSENT)
+                        expanded = false
+                    }
+                )
+                DropdownMenuItem(
+                    text = { Text("Watched Recording") },
+                    onClick = {
+                        onStatusChange(ClassAttendanceStatus.WATCHED_RECORDING)
+                        expanded = false
+                    }
+                )
+                DropdownMenuItem(
+                    text = { Text("Needs Revision") },
+                    onClick = {
+                        onStatusChange(ClassAttendanceStatus.NEED_REVISION)
+                        expanded = false
+                    }
+                )
             }
         }
     }
@@ -470,14 +407,15 @@ private fun TaskRow(
     Row(
         modifier = Modifier
             .fillMaxWidth()
+            .clip(RoundedCornerShape(10.dp))
             .clickable { onToggle() }
-            .padding(vertical = 10.dp),
+            .padding(vertical = 10.dp, horizontal = 4.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Icon(
             imageVector = if (task.isCompleted) Icons.Outlined.CheckCircle else Icons.Outlined.RadioButtonUnchecked,
             contentDescription = "Toggle",
-            tint = if (task.isCompleted) StatusGreen else MaterialTheme.colorScheme.onSurfaceVariant,
+            tint = if (task.isCompleted) StatusGreen else GlassDarkTextSecondary,
             modifier = Modifier.size(24.dp)
         )
         Spacer(modifier = Modifier.width(12.dp))
@@ -487,7 +425,7 @@ private fun TaskRow(
                 style = MaterialTheme.typography.bodyLarge.copy(
                     fontWeight = FontWeight.SemiBold
                 ),
-                color = if (task.isCompleted) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurface
+                color = if (task.isCompleted) GlassDarkTextSecondary else GlassDarkTextPrimary
             )
             Spacer(modifier = Modifier.height(2.dp))
             Row(
@@ -499,7 +437,7 @@ private fun TaskRow(
                 Text(
                     text = "• ${task.estimatedMinutes}m • ${task.deadline}",
                     fontSize = 11.sp,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    color = GlassDarkTextTertiary
                 )
             }
         }
@@ -519,7 +457,7 @@ fun AddTaskDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Create New Task") },
+        title = { Text("Create New Task", color = GlassDarkTextPrimary) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 OutlinedTextField(
@@ -530,21 +468,24 @@ fun AddTaskDialog(
                     modifier = Modifier.fillMaxWidth()
                 )
 
-                Text("Category", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text("Category", fontSize = 12.sp, color = GlassDarkTextSecondary)
                 LazyRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                     items(TaskCategory.values()) { category ->
                         val isSel = selectedCategory == category
-                        Surface(
-                            onClick = { selectedCategory = category },
-                            shape = RoundedCornerShape(8.dp),
-                            color = if (isSel) AccentBlue else MaterialTheme.colorScheme.surfaceVariant
+                        val shape = RoundedCornerShape(8.dp)
+                        Box(
+                            modifier = Modifier
+                                .clip(shape)
+                                .background(if (isSel) AccentBlue.copy(alpha = 0.3f) else Color(0x14FFFFFF))
+                                .border(1.dp, if (isSel) AccentBlue else Color(0x20FFFFFF), shape)
+                                .clickable { selectedCategory = category }
+                                .padding(horizontal = 8.dp, vertical = 4.dp)
                         ) {
                             Text(
                                 text = category.name.replace("_", " "),
                                 fontSize = 11.sp,
                                 fontWeight = FontWeight.SemiBold,
-                                color = if (isSel) Color.White else MaterialTheme.colorScheme.onSurface,
-                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                                color = if (isSel) AccentCyan else GlassDarkTextSecondary
                             )
                         }
                     }
@@ -583,14 +524,15 @@ fun AddTaskDialog(
                             )
                         )
                     }
-                }
+                },
+                colors = ButtonDefaults.buttonColors(containerColor = AccentBlue)
             ) {
                 Text("Add Task")
             }
         },
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text("Cancel")
+                Text("Cancel", color = GlassDarkTextSecondary)
             }
         }
     )

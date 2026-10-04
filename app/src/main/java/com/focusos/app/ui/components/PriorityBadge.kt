@@ -1,10 +1,10 @@
 package com.focusos.app.ui.components
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
@@ -19,23 +19,25 @@ import com.focusos.app.ui.theme.*
 
 @Composable
 fun CategoryBadge(category: TaskCategory, modifier: Modifier = Modifier) {
-    val (bgColor, textColor, label) = when (category) {
-        TaskCategory.IITM -> Triple(StatusBlueSubtle, AccentBlue, "IITM DS")
-        TaskCategory.ITEP -> Triple(StatusPurpleSubtle, StatusPurple, "ITEP Math")
-        TaskCategory.DATA_SCIENCE -> Triple(StatusBlueSubtle, AccentBlue, "Data Science")
-        TaskCategory.INTERNSHIP -> Triple(StatusGreenSubtle, StatusGreen, "Internship")
-        TaskCategory.PROJECT -> Triple(StatusOrangeSubtle, StatusOrange, "Project")
-        TaskCategory.HEALTH -> Triple(StatusGreenSubtle, StatusGreen, "Health / Gym")
-        TaskCategory.GATE -> Triple(StatusPurpleSubtle, StatusPurple, "GATE")
-        TaskCategory.JAM -> Triple(StatusOrangeSubtle, StatusOrange, "JAM")
-        TaskCategory.SSC -> Triple(StatusRedSubtle, StatusRed, "SSC")
-        TaskCategory.PERSONAL -> Triple(Color(0x1F8E8E93), MaterialTheme.colorScheme.onSurfaceVariant, "Personal")
+    val (bgColor, borderColor, textColor, label) = when (category) {
+        TaskCategory.IITM -> Quad(StatusBlueSubtle, AccentBlue.copy(alpha = 0.35f), AccentBlue, "IITM DS")
+        TaskCategory.ITEP -> Quad(StatusPurpleSubtle, AccentPurple.copy(alpha = 0.35f), AccentPurple, "ITEP Math")
+        TaskCategory.DATA_SCIENCE -> Quad(StatusTealSubtle, StatusTeal.copy(alpha = 0.35f), StatusTeal, "Data Science")
+        TaskCategory.INTERNSHIP -> Quad(StatusGreenSubtle, StatusGreen.copy(alpha = 0.35f), StatusGreen, "Internship")
+        TaskCategory.PROJECT -> Quad(StatusOrangeSubtle, StatusOrange.copy(alpha = 0.35f), StatusOrange, "Project")
+        TaskCategory.HEALTH -> Quad(StatusGreenSubtle, StatusGreen.copy(alpha = 0.35f), StatusGreen, "Health / Gym")
+        TaskCategory.GATE -> Quad(StatusPurpleSubtle, AccentPurple.copy(alpha = 0.35f), AccentPurple, "GATE")
+        TaskCategory.JAM -> Quad(StatusOrangeSubtle, StatusOrange.copy(alpha = 0.35f), StatusOrange, "JAM")
+        TaskCategory.SSC -> Quad(StatusRedSubtle, StatusRed.copy(alpha = 0.35f), StatusRed, "SSC")
+        TaskCategory.PERSONAL -> Quad(Color(0x14FFFFFF), Color(0x28FFFFFF), GlassDarkTextSecondary, "Personal")
     }
 
+    val shape = RoundedCornerShape(8.dp)
     Box(
         modifier = modifier
-            .clip(RoundedCornerShape(8.dp))
+            .clip(shape)
             .background(bgColor)
+            .border(1.dp, borderColor, shape)
             .padding(horizontal = 8.dp, vertical = 3.dp)
     ) {
         Text(
@@ -49,16 +51,18 @@ fun CategoryBadge(category: TaskCategory, modifier: Modifier = Modifier) {
 
 @Composable
 fun PriorityBadge(priority: TaskPriority, modifier: Modifier = Modifier) {
-    val (bgColor, textColor, label) = when (priority) {
-        TaskPriority.HIGH -> Triple(StatusRedSubtle, StatusRed, "High")
-        TaskPriority.MEDIUM -> Triple(StatusOrangeSubtle, StatusOrange, "Med")
-        TaskPriority.LOW -> Triple(Color(0x1F8E8E93), MaterialTheme.colorScheme.onSurfaceVariant, "Low")
+    val (bgColor, borderColor, textColor, label) = when (priority) {
+        TaskPriority.HIGH -> Quad(StatusRedSubtle, StatusRed.copy(alpha = 0.35f), StatusRed, "High")
+        TaskPriority.MEDIUM -> Quad(StatusOrangeSubtle, StatusOrange.copy(alpha = 0.35f), StatusOrange, "Med")
+        TaskPriority.LOW -> Quad(Color(0x14FFFFFF), Color(0x28FFFFFF), GlassDarkTextSecondary, "Low")
     }
 
+    val shape = RoundedCornerShape(6.dp)
     Box(
         modifier = modifier
-            .clip(RoundedCornerShape(6.dp))
+            .clip(shape)
             .background(bgColor)
+            .border(1.dp, borderColor, shape)
             .padding(horizontal = 6.dp, vertical = 2.dp)
     ) {
         Text(
@@ -69,3 +73,5 @@ fun PriorityBadge(priority: TaskPriority, modifier: Modifier = Modifier) {
         )
     }
 }
+
+private data class Quad<A, B, C, D>(val first: A, val second: B, val third: C, val fourth: D)

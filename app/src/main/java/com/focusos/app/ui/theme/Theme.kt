@@ -13,37 +13,37 @@ import androidx.core.view.WindowCompat
 
 private val DarkColorScheme = darkColorScheme(
     primary = AccentBlue,
-    secondary = StatusTeal,
-    tertiary = StatusPurple,
-    background = AppleDarkBg,
-    surface = AppleDarkSurface,
-    surfaceVariant = AppleDarkElevated,
-    onPrimary = AppleDarkTextPrimary,
-    onSecondary = AppleDarkTextPrimary,
-    onBackground = AppleDarkTextPrimary,
-    onSurface = AppleDarkTextPrimary,
-    onSurfaceVariant = AppleDarkTextSecondary,
-    outline = AppleDarkBorder
+    secondary = AccentCyan,
+    tertiary = AccentPurple,
+    background = GlassBgDark,
+    surface = GlassDarkSurface,
+    surfaceVariant = GlassDarkCard,
+    onPrimary = GlassDarkTextPrimary,
+    onSecondary = GlassDarkTextPrimary,
+    onBackground = GlassDarkTextPrimary,
+    onSurface = GlassDarkTextPrimary,
+    onSurfaceVariant = GlassDarkTextSecondary,
+    outline = GlassDarkBorder
 )
 
 private val LightColorScheme = lightColorScheme(
     primary = AccentBlueLight,
     secondary = StatusTeal,
-    tertiary = StatusPurple,
-    background = AppleLightBg,
-    surface = AppleLightSurface,
-    surfaceVariant = AppleLightElevated,
-    onPrimary = AppleLightTextPrimary,
-    onSecondary = AppleLightTextPrimary,
-    onBackground = AppleLightTextPrimary,
-    onSurface = AppleLightTextPrimary,
-    onSurfaceVariant = AppleLightTextSecondary,
-    outline = AppleLightBorder
+    tertiary = AccentPurple,
+    background = GlassLightBg,
+    surface = GlassLightSurface,
+    surfaceVariant = GlassLightCard,
+    onPrimary = GlassLightTextPrimary,
+    onSecondary = GlassLightTextPrimary,
+    onBackground = GlassLightTextPrimary,
+    onSurface = GlassLightTextPrimary,
+    onSurfaceVariant = GlassLightTextSecondary,
+    outline = GlassLightBorder
 )
 
 @Composable
 fun FocusOsTheme(
-    darkTheme: Boolean = isSystemInDarkTheme(),
+    darkTheme: Boolean = true, // Default to stunning Glassmorphic Dark UI
     content: @Composable () -> Unit
 ) {
     val colorScheme = if (darkTheme) DarkColorScheme else LightColorScheme
@@ -51,8 +51,8 @@ fun FocusOsTheme(
     if (!view.isInEditMode) {
         SideEffect {
             val window = (view.context as Activity).window
-            window.statusBarColor = colorScheme.background.toArgb()
-            window.navigationBarColor = colorScheme.background.toArgb()
+            window.statusBarColor = GlassBgDark.toArgb()
+            window.navigationBarColor = GlassBgDark.toArgb()
             WindowCompat.getInsetsController(window, view).apply {
                 isAppearanceLightStatusBars = !darkTheme
                 isAppearanceLightNavigationBars = !darkTheme

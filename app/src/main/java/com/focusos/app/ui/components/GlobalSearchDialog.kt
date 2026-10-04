@@ -1,6 +1,7 @@
 package com.focusos.app.ui.components
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -14,14 +15,14 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
-import com.focusos.app.data.models.TaskItem
-import com.focusos.app.data.models.Subject
-import com.focusos.app.data.models.PortfolioProject
-import com.focusos.app.data.models.InternshipApplication
+import com.focusos.app.data.models.*
+import com.focusos.app.ui.theme.*
 
 @Composable
 fun GlobalSearchDialog(
@@ -57,30 +58,43 @@ fun GlobalSearchDialog(
     val totalMatches = filteredTasks.size + filteredSubjects.size + filteredProjects.size + filteredInternships.size
 
     Dialog(onDismissRequest = onDismiss) {
-        Surface(
-            shape = RoundedCornerShape(22.dp),
-            color = MaterialTheme.colorScheme.surface,
-            border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.4f)),
+        val dialogShape = RoundedCornerShape(24.dp)
+        Box(
             modifier = Modifier
                 .fillMaxWidth()
                 .fillMaxHeight(0.75f)
-                .padding(8.dp)
+                .clip(dialogShape)
+                .background(
+                    Brush.verticalGradient(
+                        listOf(Color(0xFF141928), Color(0xFF0C0F17))
+                    )
+                )
+                .border(1.dp, GlassBorderGradient, dialogShape)
+                .padding(18.dp)
         ) {
-            Column(modifier = Modifier.padding(18.dp)) {
+            Column(modifier = Modifier.fillMaxSize()) {
                 OutlinedTextField(
                     value = query,
                     onValueChange = { query = it },
-                    placeholder = { Text("Search tasks, subjects, projects...") },
-                    leadingIcon = { Icon(Icons.Default.Search, contentDescription = "Search") },
+                    placeholder = { Text("Search tasks, subjects, projects...", color = GlassDarkTextSecondary) },
+                    leadingIcon = { Icon(Icons.Default.Search, contentDescription = "Search", tint = AccentCyan) },
                     trailingIcon = {
                         if (query.isNotEmpty()) {
                             IconButton(onClick = { query = "" }) {
-                                Icon(Icons.Default.Close, contentDescription = "Clear")
+                                Icon(Icons.Default.Close, contentDescription = "Clear", tint = GlassDarkTextSecondary)
                             }
                         }
                     },
                     singleLine = true,
                     shape = RoundedCornerShape(14.dp),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = AccentBlue,
+                        unfocusedBorderColor = Color(0x20FFFFFF),
+                        focusedContainerColor = Color(0x12FFFFFF),
+                        unfocusedContainerColor = Color(0x12FFFFFF),
+                        focusedTextColor = GlassDarkTextPrimary,
+                        unfocusedTextColor = GlassDarkTextPrimary
+                    ),
                     modifier = Modifier.fillMaxWidth()
                 )
 
@@ -90,15 +104,15 @@ fun GlobalSearchDialog(
                     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                         Text(
                             text = "Type to search your entire personal OS",
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            color = GlassDarkTextSecondary,
                             fontSize = 13.sp
                         )
                     }
                 } else if (totalMatches == 0) {
                     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                         Text(
-                            text = "No results found for '$query'",
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            text = "No results found",
+                            color = GlassDarkTextSecondary,
                             fontSize = 13.sp
                         )
                     }
@@ -113,11 +127,11 @@ fun GlobalSearchDialog(
                                     text = "TASKS (${filteredTasks.size})",
                                     fontSize = 11.sp,
                                     fontWeight = FontWeight.Bold,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    color = AccentCyan
                                 )
                             }
                             items(filteredTasks) { task ->
-                                SearchResultRow(
+                                SearchResultGlassRow(
                                     title = task.title,
                                     subtitle = "Category: ${task.category.name} • ${task.deadline}",
                                     onClick = {
@@ -134,11 +148,11 @@ fun GlobalSearchDialog(
                                     text = "SUBJECTS (${filteredSubjects.size})",
                                     fontSize = 11.sp,
                                     fontWeight = FontWeight.Bold,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    color = AccentPurple
                                 )
                             }
                             items(filteredSubjects) { subject ->
-                                SearchResultRow(
+                                SearchResultGlassRow(
                                     title = subject.name,
                                     subtitle = "${subject.degreeType.name} • ${subject.credits} Credits • Score: ${subject.currentScore}%",
                                     onClick = {
@@ -155,11 +169,11 @@ fun GlobalSearchDialog(
                                     text = "PROJECTS (${filteredProjects.size})",
                                     fontSize = 11.sp,
                                     fontWeight = FontWeight.Bold,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    color = StatusTeal
                                 )
                             }
                             items(filteredProjects) { project ->
-                                SearchResultRow(
+                                SearchResultGlassRow(
                                     title = project.title,
                                     subtitle = "${project.status} • ${project.progressPercent}% done",
                                     onClick = {
@@ -176,11 +190,11 @@ fun GlobalSearchDialog(
                                     text = "INTERNSHIPS (${filteredInternships.size})",
                                     fontSize = 11.sp,
                                     fontWeight = FontWeight.Bold,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    color = StatusGreen
                                 )
                             }
                             items(filteredInternships) { intern ->
-                                SearchResultRow(
+                                SearchResultGlassRow(
                                     title = "${intern.role} @ ${intern.company}",
                                     subtitle = "${intern.status.name} • ${intern.stipend}",
                                     onClick = {
@@ -198,28 +212,33 @@ fun GlobalSearchDialog(
 }
 
 @Composable
-private fun SearchResultRow(
+private fun SearchResultGlassRow(
     title: String,
     subtitle: String,
     onClick: () -> Unit
 ) {
-    Surface(
-        onClick = onClick,
-        shape = RoundedCornerShape(10.dp),
-        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
-        modifier = Modifier.fillMaxWidth()
+    val shape = RoundedCornerShape(12.dp)
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(shape)
+            .background(Color(0x14FFFFFF))
+            .border(1.dp, Color(0x18FFFFFF), shape)
+            .clickable(onClick = onClick)
+            .padding(12.dp)
     ) {
-        Column(modifier = Modifier.padding(12.dp)) {
+        Column {
             Text(
                 text = title,
                 fontSize = 14.sp,
                 fontWeight = FontWeight.SemiBold,
-                color = MaterialTheme.colorScheme.onSurface
+                color = GlassDarkTextPrimary
             )
+            Spacer(modifier = Modifier.height(2.dp))
             Text(
                 text = subtitle,
                 fontSize = 12.sp,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+                color = GlassDarkTextSecondary
             )
         }
     }

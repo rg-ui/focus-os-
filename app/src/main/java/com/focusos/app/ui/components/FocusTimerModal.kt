@@ -1,8 +1,11 @@
 package com.focusos.app.ui.components
 
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -13,6 +16,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
@@ -21,9 +25,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import com.focusos.app.data.models.FocusSession
-import com.focusos.app.data.models.TaskCategory
-import com.focusos.app.ui.theme.AccentBlue
-import com.focusos.app.ui.theme.StatusGreen
+import com.focusos.app.ui.theme.*
 import kotlinx.coroutines.delay
 
 @Composable
@@ -34,87 +36,96 @@ fun FocusTimerModal(
     var selectedMinutes by remember { mutableStateOf(25) }
     var remainingSeconds by remember { mutableStateOf(25 * 60) }
     var isRunning by remember { mutableStateOf(false) }
-    var taskName by remember { mutableStateOf("Deep Academic Study") }
-    var showAccomplishmentPrompt by remember { mutableStateOf(false) }
+    var isCompleted by remember { mutableStateOf(false) }
+    var taskName by remember { mutableStateOf("Deep Study & Core Focus") }
     var accomplishmentNotes by remember { mutableStateOf("") }
 
-    val totalSeconds = selectedMinutes * 60
+    val totalSeconds = remember(selectedMinutes) { selectedMinutes * 60 }
+    val progress = if (totalSeconds > 0) (totalSeconds - remainingSeconds).toFloat() / totalSeconds else 0f
+
+    val animatedProgress by animateFloatAsState(
+        targetValue = progress,
+        animationSpec = tween(durationMillis = 300),
+        label = "timerProgress"
+    )
 
     LaunchedEffect(isRunning, remainingSeconds) {
         if (isRunning && remainingSeconds > 0) {
             delay(1000L)
-            remainingSeconds--
+            remainingSeconds -= 1
         } else if (isRunning && remainingSeconds == 0) {
             isRunning = false
-            showAccomplishmentPrompt = true
+            isCompleted = true
         }
     }
 
-    val progress = if (totalSeconds > 0) (remainingSeconds.toFloat() / totalSeconds.toFloat()) else 0f
-    val animatedProgress by animateFloatAsState(targetValue = progress, label = "focusProgress")
-
-    val minutes = remainingSeconds / 60
-    val seconds = remainingSeconds % 60
-    val timeFormatted = String.format("%02d:%02d", minutes, seconds)
+    val minutesLeft = remainingSeconds / 60
+    val secondsLeft = remainingSeconds % 60
+    val timeFormatted = String.format("%02d:%02d", minutesLeft, secondsLeft)
 
     Dialog(onDismissRequest = { if (!isRunning) onDismiss() }) {
-        Surface(
-            shape = RoundedCornerShape(24.dp),
-            color = MaterialTheme.colorScheme.surface,
-            border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.4f)),
-            modifier = Modifier.fillMaxWidth().padding(16.dp)
+        val dialogShape = RoundedCornerShape(26.dp)
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(dialogShape)
+                .background(
+                    Brush.verticalGradient(
+                        listOf(Color(0xFF141928), Color(0xFF0C0F17))
+                    )
+                )
+                .border(1.dp, GlassBorderGradient, dialogShape)
+                .padding(22.dp)
         ) {
             Column(
-                modifier = Modifier.padding(24.dp),
-                horizontalAlignment = Alignment.CenterHorizontally
+                horizontalAlignment = Alignment.CenterHorizontally,
+                modifier = Modifier.fillMaxWidth()
             ) {
-                if (!showAccomplishmentPrompt) {
+                if (!isCompleted) {
                     Text(
-                        text = "Focus Session",
-                        style = MaterialTheme.typography.titleLarge,
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
-                    Text(
-                        text = "Calm, undistracted momentum",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        text = "DEEP FOCUS TIMER",
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Bold,
+                        letterSpacing = 1.sp,
+                        color = AccentCyan
                     )
 
-                    Spacer(modifier = Modifier.height(20.dp))
+                    Spacer(modifier = Modifier.height(14.dp))
 
-                    // Mode Selection Tabs
+                    // Preset Duration selector
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
                             .clip(RoundedCornerShape(12.dp))
-                            .background(MaterialTheme.colorScheme.surfaceVariant)
+                            .background(Color(0x12FFFFFF))
+                            .border(1.dp, Color(0x18FFFFFF), RoundedCornerShape(12.dp))
                             .padding(4.dp),
-                        horizontalArrangement = Arrangement.SpaceEvenly
+                        horizontalArrangement = Arrangement.SpaceBetween
                     ) {
-                        listOf(25 to "25 min", 50 to "50 min", 90 to "90 min").forEach { (mins, label) ->
+                        listOf(15 to "15m", 25 to "25m", 50 to "50m", 90 to "90m").forEach { (mins, label) ->
                             val selected = selectedMinutes == mins
-                            Surface(
-                                onClick = {
-                                    if (!isRunning) {
-                                        selectedMinutes = mins
-                                        remainingSeconds = mins * 60
+                            val pillShape = RoundedCornerShape(8.dp)
+                            Box(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .clip(pillShape)
+                                    .background(if (selected) AccentBlue.copy(alpha = 0.3f) else Color.Transparent)
+                                    .border(1.dp, if (selected) AccentBlue.copy(alpha = 0.6f) else Color.Transparent, pillShape)
+                                    .clickable {
+                                        if (!isRunning) {
+                                            selectedMinutes = mins
+                                            remainingSeconds = mins * 60
+                                        }
                                     }
-                                },
-                                shape = RoundedCornerShape(8.dp),
-                                color = if (selected) MaterialTheme.colorScheme.surface else Color.Transparent,
-                                modifier = Modifier.weight(1f)
+                                    .padding(vertical = 8.dp),
+                                contentAlignment = Alignment.Center
                             ) {
-                                Box(
-                                    modifier = Modifier.padding(vertical = 8.dp),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Text(
-                                        text = label,
-                                        fontSize = 13.sp,
-                                        fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
-                                        color = if (selected) AccentBlue else MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
-                                }
+                                Text(
+                                    text = label,
+                                    fontSize = 12.sp,
+                                    fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
+                                    color = if (selected) AccentCyan else GlassDarkTextSecondary
+                                )
                             }
                         }
                     }
@@ -123,11 +134,17 @@ fun FocusTimerModal(
 
                     // Timer Circular Canvas
                     Box(
-                        modifier = Modifier.size(190.dp),
+                        modifier = Modifier
+                            .size(190.dp)
+                            .clip(CircleShape)
+                            .background(Color(0x0CFFFFFF))
+                            .border(1.dp, Color(0x18FFFFFF), CircleShape),
                         contentAlignment = Alignment.Center
                     ) {
-                        val trackColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
-                        Canvas(modifier = Modifier.fillMaxSize()) {
+                        val trackColor = Color(0x18FFFFFF)
+                        val progressBrush = Brush.sweepGradient(listOf(AccentBlue, AccentCyan, AccentPurple, AccentBlue))
+
+                        Canvas(modifier = Modifier.fillMaxSize().padding(10.dp)) {
                             drawArc(
                                 color = trackColor,
                                 startAngle = -90f,
@@ -135,13 +152,15 @@ fun FocusTimerModal(
                                 useCenter = false,
                                 style = Stroke(width = 10.dp.toPx(), cap = StrokeCap.Round)
                             )
-                            drawArc(
-                                color = AccentBlue,
-                                startAngle = -90f,
-                                sweepAngle = 360f * animatedProgress,
-                                useCenter = false,
-                                style = Stroke(width = 10.dp.toPx(), cap = StrokeCap.Round)
-                            )
+                            if (animatedProgress > 0f) {
+                                drawArc(
+                                    brush = progressBrush,
+                                    startAngle = -90f,
+                                    sweepAngle = 360f * animatedProgress,
+                                    useCenter = false,
+                                    style = Stroke(width = 10.dp.toPx(), cap = StrokeCap.Round)
+                                )
+                            }
                         }
 
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -149,14 +168,14 @@ fun FocusTimerModal(
                                 text = timeFormatted,
                                 fontSize = 38.sp,
                                 fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.onSurface
+                                color = GlassDarkTextPrimary
                             )
                             Text(
                                 text = if (isRunning) "FOCUSING" else "READY",
                                 fontSize = 11.sp,
                                 fontWeight = FontWeight.SemiBold,
                                 letterSpacing = 1.sp,
-                                color = if (isRunning) StatusGreen else MaterialTheme.colorScheme.onSurfaceVariant
+                                color = if (isRunning) StatusGreen else GlassDarkTextSecondary
                             )
                         }
                     }
@@ -177,27 +196,27 @@ fun FocusTimerModal(
                             shape = RoundedCornerShape(12.dp),
                             enabled = remainingSeconds < totalSeconds
                         ) {
-                            Icon(Icons.Default.Refresh, contentDescription = "Reset")
+                            Icon(Icons.Default.Refresh, contentDescription = "Reset", tint = GlassDarkTextSecondary)
                             Spacer(Modifier.width(4.dp))
-                            Text("Reset")
+                            Text("Reset", color = GlassDarkTextSecondary)
                         }
 
                         Button(
                             onClick = { isRunning = !isRunning },
                             shape = RoundedCornerShape(12.dp),
                             colors = ButtonDefaults.buttonColors(
-                                containerColor = if (isRunning) MaterialTheme.colorScheme.surfaceVariant else AccentBlue
+                                containerColor = if (isRunning) Color(0x20FFFFFF) else AccentBlue
                             )
                         ) {
                             Icon(
                                 if (isRunning) Icons.Default.Pause else Icons.Default.PlayArrow,
                                 contentDescription = if (isRunning) "Pause" else "Start",
-                                tint = if (isRunning) MaterialTheme.colorScheme.onSurface else Color.White
+                                tint = Color.White
                             )
                             Spacer(Modifier.width(6.dp))
                             Text(
                                 if (isRunning) "Pause" else "Start Session",
-                                color = if (isRunning) MaterialTheme.colorScheme.onSurface else Color.White
+                                color = Color.White
                             )
                         }
                     }
@@ -205,20 +224,20 @@ fun FocusTimerModal(
                     Spacer(modifier = Modifier.height(16.dp))
 
                     TextButton(onClick = onDismiss) {
-                        Text("Close", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text("Close", color = GlassDarkTextSecondary)
                     }
                 } else {
                     // Accomplishment Reflection
                     Text(
                         text = "Session Complete!",
-                        style = MaterialTheme.typography.titleLarge,
+                        style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
                         color = StatusGreen
                     )
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
                         text = "What did you accomplish during this $selectedMinutes min block?",
                         style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        color = GlassDarkTextSecondary
                     )
 
                     Spacer(modifier = Modifier.height(16.dp))
@@ -226,7 +245,7 @@ fun FocusTimerModal(
                     OutlinedTextField(
                         value = accomplishmentNotes,
                         onValueChange = { accomplishmentNotes = it },
-                        placeholder = { Text("e.g., Solved 5 Bayes theorem questions for IITM assignment") },
+                        placeholder = { Text("e.g., Solved 5 Bayes theorem questions for IITM assignment", color = GlassDarkTextSecondary) },
                         modifier = Modifier.fillMaxWidth(),
                         maxLines = 4,
                         shape = RoundedCornerShape(12.dp)

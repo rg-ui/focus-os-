@@ -6,6 +6,8 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -17,6 +19,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
@@ -27,10 +30,7 @@ import com.focusos.app.data.models.TaskItem
 import com.focusos.app.data.models.TaskPriority
 import com.focusos.app.ui.components.*
 import com.focusos.app.ui.screens.*
-import com.focusos.app.ui.theme.AccentBlue
-import com.focusos.app.ui.theme.FocusOsTheme
-import com.focusos.app.ui.theme.StatusBlueSubtle
-import com.focusos.app.ui.theme.StatusGreen
+import com.focusos.app.ui.theme.*
 import com.focusos.app.util.AppUpdateManager
 import com.focusos.app.util.NotificationHelper
 import com.focusos.app.util.UpdateInfo
@@ -108,7 +108,7 @@ class MainActivity : ComponentActivity() {
                 } else {
                     Scaffold(
                         topBar = {
-                            FocusOsTopBar(
+                            FocusOsGlassTopBar(
                                 currentNav = currentNav,
                                 onOpenSearch = { showGlobalSearch = true },
                                 onOpenSettings = { showSettings = true },
@@ -125,25 +125,31 @@ class MainActivity : ComponentActivity() {
                             )
                         },
                         bottomBar = {
-                            FocusOsBottomNavBar(
+                            FocusOsGlassBottomNavBar(
                                 currentNav = currentNav,
                                 onNavSelected = { currentNav = it }
                             )
                         },
                         floatingActionButton = {
-                            FloatingActionButton(
-                                onClick = { showQuickActions = true },
-                                containerColor = AccentBlue,
-                                contentColor = Color.White,
-                                shape = CircleShape,
+                            val fabShape = CircleShape
+                            Box(
                                 modifier = Modifier
-                                    .padding(bottom = 70.dp)
+                                    .padding(bottom = 76.dp)
                                     .size(56.dp)
+                                    .clip(fabShape)
+                                    .background(
+                                        Brush.linearGradient(
+                                            listOf(AccentBlue, AccentCyan)
+                                        )
+                                    )
+                                    .border(1.5.dp, Brush.linearGradient(listOf(Color.White.copy(alpha = 0.6f), Color.Transparent)), fabShape)
+                                    .clickable { showQuickActions = true },
+                                contentAlignment = Alignment.Center
                             ) {
-                                Icon(Icons.Default.Add, contentDescription = "Quick Action", modifier = Modifier.size(28.dp))
+                                Icon(Icons.Default.Add, contentDescription = "Quick Action", tint = Color.White, modifier = Modifier.size(28.dp))
                             }
                         },
-                        containerColor = MaterialTheme.colorScheme.background
+                        containerColor = GlassBgDark
                     ) { innerPadding ->
                         Box(
                             modifier = Modifier
@@ -189,13 +195,13 @@ class MainActivity : ComponentActivity() {
                             val update = availableUpdate!!
                             AlertDialog(
                                 onDismissRequest = { availableUpdate = null },
-                                title = { Text("Update Available (${update.latestVersionName})") },
+                                title = { Text("Update Available (${update.latestVersionName})", color = GlassDarkTextPrimary) },
                                 text = {
                                     Column {
                                         Text(
                                             text = update.changelog,
                                             fontSize = 13.sp,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                            color = GlassDarkTextSecondary
                                         )
                                         Spacer(Modifier.height(10.dp))
                                         Text(
@@ -224,7 +230,7 @@ class MainActivity : ComponentActivity() {
                                 },
                                 dismissButton = {
                                     TextButton(onClick = { availableUpdate = null }) {
-                                        Text("Later")
+                                        Text("Later", color = GlassDarkTextSecondary)
                                     }
                                 }
                             )
@@ -295,7 +301,7 @@ class MainActivity : ComponentActivity() {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun FocusOsTopBar(
+fun FocusOsGlassTopBar(
     currentNav: NavItem,
     onOpenSearch: () -> Unit,
     onOpenSettings: () -> Unit,
@@ -306,79 +312,87 @@ fun FocusOsTopBar(
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Box(
                     modifier = Modifier
-                        .size(30.dp)
+                        .size(32.dp)
                         .clip(CircleShape)
-                        .background(StatusBlueSubtle),
+                        .background(StatusBlueSubtle)
+                        .border(1.dp, AccentBlue.copy(alpha = 0.4f), CircleShape),
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
                         Icons.Default.Adjust,
                         contentDescription = "Focus OS",
-                        tint = AccentBlue,
+                        tint = AccentCyan,
                         modifier = Modifier.size(18.dp)
                     )
                 }
-                Spacer(modifier = Modifier.width(8.dp))
+                Spacer(modifier = Modifier.width(10.dp))
                 Text(
                     text = "FOCUS OS",
                     fontSize = 17.sp,
                     fontWeight = FontWeight.Bold,
-                    letterSpacing = 0.5.sp,
-                    color = MaterialTheme.colorScheme.onBackground
+                    letterSpacing = 1.sp,
+                    color = GlassDarkTextPrimary
                 )
             }
         },
         actions = {
             IconButton(onClick = onTestNotification) {
-                Icon(Icons.Outlined.Notifications, contentDescription = "Alerts", tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                Icon(Icons.Outlined.Notifications, contentDescription = "Alerts", tint = GlassDarkTextSecondary)
             }
             IconButton(onClick = onOpenSearch) {
-                Icon(Icons.Outlined.Search, contentDescription = "Search", tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                Icon(Icons.Outlined.Search, contentDescription = "Search", tint = GlassDarkTextSecondary)
             }
             IconButton(onClick = onOpenSettings) {
-                Icon(Icons.Outlined.AccountCircle, contentDescription = "Profile", tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                Icon(Icons.Outlined.AccountCircle, contentDescription = "Profile", tint = GlassDarkTextSecondary)
             }
         },
         colors = TopAppBarDefaults.topAppBarColors(
-            containerColor = MaterialTheme.colorScheme.background
+            containerColor = Color(0xCC090B10)
         )
     )
 }
 
 @Composable
-fun FocusOsBottomNavBar(
+fun FocusOsGlassBottomNavBar(
     currentNav: NavItem,
     onNavSelected: (NavItem) -> Unit
 ) {
-    NavigationBar(
-        containerColor = MaterialTheme.colorScheme.surface,
-        tonalElevation = 8.dp,
-        modifier = Modifier.height(72.dp)
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(Color(0xCC090B10))
+            .border(1.dp, Color(0x18FFFFFF), RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp))
     ) {
-        NavItem.values().forEach { item ->
-            val isSelected = currentNav == item
-            NavigationBarItem(
-                selected = isSelected,
-                onClick = { onNavSelected(item) },
-                icon = {
-                    Icon(
-                        imageVector = if (isSelected) item.selectedIcon else item.unselectedIcon,
-                        contentDescription = item.title,
-                        tint = if (isSelected) AccentBlue else MaterialTheme.colorScheme.onSurfaceVariant
+        NavigationBar(
+            containerColor = Color.Transparent,
+            tonalElevation = 0.dp,
+            modifier = Modifier.height(72.dp)
+        ) {
+            NavItem.values().forEach { item ->
+                val isSelected = currentNav == item
+                NavigationBarItem(
+                    selected = isSelected,
+                    onClick = { onNavSelected(item) },
+                    icon = {
+                        Icon(
+                            imageVector = if (isSelected) item.selectedIcon else item.unselectedIcon,
+                            contentDescription = item.title,
+                            tint = if (isSelected) AccentCyan else GlassDarkTextSecondary
+                        )
+                    },
+                    label = {
+                        Text(
+                            text = item.title,
+                            fontSize = 11.sp,
+                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                            color = if (isSelected) AccentCyan else GlassDarkTextSecondary
+                        )
+                    },
+                    colors = NavigationBarItemDefaults.colors(
+                        indicatorColor = StatusBlueSubtle
                     )
-                },
-                label = {
-                    Text(
-                        text = item.title,
-                        fontSize = 11.sp,
-                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
-                        color = if (isSelected) AccentBlue else MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                },
-                colors = NavigationBarItemDefaults.colors(
-                    indicatorColor = StatusBlueSubtle
                 )
-            )
+            }
         }
     }
 }

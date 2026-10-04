@@ -2,6 +2,7 @@ package com.focusos.app.ui.screens
 
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -16,14 +17,16 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.focusos.app.data.models.*
 import com.focusos.app.data.repository.FocusOsRepository
-import com.focusos.app.ui.components.AppleCard
 import com.focusos.app.ui.components.CategoryBadge
+import com.focusos.app.ui.components.GlassBackgroundBox
+import com.focusos.app.ui.components.GlassCard
 import com.focusos.app.ui.theme.*
 
 @Composable
@@ -43,449 +46,412 @@ fun AcademicsScreen(
         else subjects.filter { it.degreeType == selectedDegreeFilter }
     }
 
-    LazyColumn(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(horizontal = 16.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp),
-        contentPadding = PaddingValues(top = 16.dp, bottom = 100.dp)
-    ) {
-        // 1. HEADER
-        item {
-            Column {
-                Text(
-                    text = "Academics",
-                    style = MaterialTheme.typography.headlineLarge,
-                    color = MaterialTheme.colorScheme.onBackground
-                )
-                Text(
-                    text = "Dual-Degree CGPA Recovery & Mastery System",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-        }
-
-        // 2. ITEP CARD
-        if (itep != null) {
+    GlassBackgroundBox {
+        LazyColumn(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(horizontal = 16.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp),
+            contentPadding = PaddingValues(top = 16.dp, bottom = 100.dp)
+        ) {
+            // 1. HEADER
             item {
-                DegreeCgpaCard(
-                    degree = itep,
-                    accentColor = StatusPurple,
-                    targetOptions = listOf(7.0, 7.5, 8.0, 8.5),
-                    onTargetSelected = { target ->
-                        repository.updateDegree(itep.type, itep.currentCgpa, target, itep.completedCredits)
-                    }
-                )
-            }
-        }
-
-        // 3. IITM CARD
-        if (iitm != null) {
-            item {
-                DegreeCgpaCard(
-                    degree = iitm,
-                    accentColor = AccentBlue,
-                    targetOptions = listOf(6.0, 6.5, 7.0, 7.5, 8.0),
-                    onTargetSelected = { target ->
-                        repository.updateDegree(iitm.type, iitm.currentCgpa, target, iitm.completedCredits)
-                    }
-                )
-            }
-        }
-
-        // 4. MISSED CLASS RECOVERY SECTION
-        item {
-            Column {
-                val unrecoveredCount = missedRecoveries.count { !it.isRecovered }
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
+                Column {
                     Text(
-                        text = "MISSED CLASS RECOVERY",
-                        style = MaterialTheme.typography.labelLarge,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        text = "Academics",
+                        style = MaterialTheme.typography.headlineLarge.copy(
+                            fontWeight = FontWeight.Bold,
+                            letterSpacing = (-0.5).sp
+                        ),
+                        color = GlassDarkTextPrimary
                     )
+                    Spacer(modifier = Modifier.height(2.dp))
                     Text(
-                        text = if (unrecoveredCount == 0) "All caught up" else "$unrecoveredCount sessions to recover",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = if (unrecoveredCount == 0) StatusGreen else StatusOrange
+                        text = "Dual-Degree CGPA Recovery & Mastery System",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = GlassDarkTextSecondary
                     )
                 }
+            }
 
-                Spacer(modifier = Modifier.height(8.dp))
+            // 2. ITEP CARD
+            if (itep != null) {
+                item {
+                    GlassDegreeCgpaCard(
+                        degree = itep,
+                        accentColor = AccentPurple,
+                        targetOptions = listOf(7.0, 7.5, 8.0, 8.5),
+                        onTargetSelected = { target ->
+                            repository.updateDegree(itep.type, itep.currentCgpa, target, itep.completedCredits)
+                        }
+                    )
+                }
+            }
 
-                if (missedRecoveries.isEmpty()) {
-                    AppleCard {
+            // 3. IITM CARD
+            if (iitm != null) {
+                item {
+                    GlassDegreeCgpaCard(
+                        degree = iitm,
+                        accentColor = AccentBlue,
+                        targetOptions = listOf(6.0, 6.5, 7.0, 7.5, 8.0),
+                        onTargetSelected = { target ->
+                            repository.updateDegree(iitm.type, iitm.currentCgpa, target, iitm.completedCredits)
+                        }
+                    )
+                }
+            }
+
+            // 4. MISSED CLASS RECOVERY SECTION
+            item {
+                Column {
+                    val unrecoveredCount = missedRecoveries.count { !it.isRecovered }
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
                         Text(
-                            text = "No missed classes! Attendance is completely on track.",
-                            fontSize = 13.sp,
-                            color = StatusGreen
+                            text = "MISSED CLASS RECOVERY",
+                            style = MaterialTheme.typography.labelLarge.copy(
+                                fontWeight = FontWeight.SemiBold,
+                                letterSpacing = 0.8.sp
+                            ),
+                            color = GlassDarkTextSecondary
+                        )
+                        Text(
+                            text = if (unrecoveredCount == 0) "All caught up" else "$unrecoveredCount sessions to recover",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = if (unrecoveredCount == 0) StatusGreen else StatusOrange
                         )
                     }
-                } else {
-                    missedRecoveries.forEach { recovery ->
-                        MissedClassRecoveryCard(
-                            recovery = recovery,
-                            onToggleStep = { stepIndex ->
-                                repository.toggleRecoveryStep(recovery.id, stepIndex)
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    if (missedRecoveries.isEmpty()) {
+                        GlassCard {
+                            Text(
+                                text = "Zero missed sessions! Your attendance discipline is exceptional.",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = GlassDarkTextSecondary
+                            )
+                        }
+                    } else {
+                        missedRecoveries.forEach { recovery ->
+                            GlassCard(
+                                backgroundColor = if (recovery.isRecovered) Color(0x10FFFFFF) else StatusOrangeSubtle
+                            ) {
+                                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Text(
+                                            text = "${recovery.subjectName}: ${recovery.topic}",
+                                            fontWeight = FontWeight.Bold,
+                                            fontSize = 14.sp,
+                                            color = GlassDarkTextPrimary
+                                        )
+                                        Text(
+                                            text = if (recovery.isRecovered) "Recovered ✅" else "Pending",
+                                            fontSize = 12.sp,
+                                            fontWeight = FontWeight.SemiBold,
+                                            color = if (recovery.isRecovered) StatusGreen else StatusOrange
+                                        )
+                                    }
+
+                                    // Checklist
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                    ) {
+                                        RecoveryChip("Watch Lecture", recovery.watchLectureDone) {
+                                            repository.toggleRecoveryStep(recovery.id, 0)
+                                        }
+                                        RecoveryChip("Notes", recovery.notesDone) {
+                                            repository.toggleRecoveryStep(recovery.id, 1)
+                                        }
+                                        RecoveryChip("Quiz", recovery.quizDone) {
+                                            repository.toggleRecoveryStep(recovery.id, 2)
+                                        }
+                                        RecoveryChip("Revision", recovery.revisionDone) {
+                                            repository.toggleRecoveryStep(recovery.id, 3)
+                                        }
+                                    }
+                                }
                             }
-                        )
-                        Spacer(modifier = Modifier.height(10.dp))
+                            Spacer(modifier = Modifier.height(8.dp))
+                        }
                     }
                 }
             }
-        }
 
-        // 5. SUBJECT TRACKER & ACADEMIC HEALTH
-        item {
-            Column {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        text = "SUBJECT TRACKER",
-                        style = MaterialTheme.typography.labelLarge,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
+            // 5. SUBJECT STATUS & SCORES
+            item {
+                Column {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "SEMESTER SUBJECTS",
+                            style = MaterialTheme.typography.labelLarge.copy(
+                                fontWeight = FontWeight.SemiBold,
+                                letterSpacing = 0.8.sp
+                            ),
+                            color = GlassDarkTextSecondary
+                        )
+                        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                            DegreeFilterChip("All", selectedDegreeFilter == null) { selectedDegreeFilter = null }
+                            DegreeFilterChip("ITEP", selectedDegreeFilter == DegreeType.ITEP) { selectedDegreeFilter = DegreeType.ITEP }
+                            DegreeFilterChip("IITM", selectedDegreeFilter == DegreeType.IITM) { selectedDegreeFilter = DegreeType.IITM }
+                        }
+                    }
 
-                    // Degree filter tabs
-                    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                        listOf(null to "All", DegreeType.ITEP to "ITEP", DegreeType.IITM to "IITM").forEach { (type, label) ->
-                            val isSel = selectedDegreeFilter == type
-                            Surface(
-                                onClick = { selectedDegreeFilter = type },
-                                shape = RoundedCornerShape(8.dp),
-                                color = if (isSel) AccentBlue else MaterialTheme.colorScheme.surfaceVariant
-                            ) {
-                                Text(
-                                    text = label,
-                                    fontSize = 11.sp,
-                                    fontWeight = FontWeight.SemiBold,
-                                    color = if (isSel) Color.White else MaterialTheme.colorScheme.onSurface,
-                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                    Spacer(modifier = Modifier.height(10.dp))
+
+                    GlassCard {
+                        filteredSubjects.forEachIndexed { index, subject ->
+                            SubjectRow(subject = subject)
+                            if (index < filteredSubjects.size - 1) {
+                                HorizontalDivider(
+                                    color = Color(0x15FFFFFF),
+                                    thickness = 0.5.dp
                                 )
                             }
                         }
                     }
                 }
-
-                Spacer(modifier = Modifier.height(12.dp))
-
-                filteredSubjects.forEach { subject ->
-                    SubjectRowCard(
-                        subject = subject,
-                        onStatusChange = { newStatus ->
-                            repository.updateSubjectStatus(subject.id, newStatus)
-                        }
-                    )
-                    Spacer(modifier = Modifier.height(10.dp))
-                }
             }
         }
     }
 }
 
 @Composable
-private fun DegreeCgpaCard(
+private fun GlassDegreeCgpaCard(
     degree: DegreeInfo,
     accentColor: Color,
     targetOptions: List<Double>,
     onTargetSelected: (Double) -> Unit
 ) {
-    val requiredSgpa = degree.calculateRequiredSgpa(degree.targetCgpa)
-    val isAchievable = requiredSgpa <= 10.0
+    val progress = (degree.currentCgpa / 10.0).toFloat().coerceIn(0f, 1f)
 
-    AppleCard {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.Top
-        ) {
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = degree.name,
-                    style = MaterialTheme.typography.titleLarge,
-                    color = MaterialTheme.colorScheme.onSurface
-                )
-                Text(
-                    text = "Year ${degree.currentYear} • Semester ${degree.currentSemester} • ${degree.completedCredits}/${degree.totalCredits} Credits",
-                    fontSize = 12.sp,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-
-            Surface(
-                shape = RoundedCornerShape(8.dp),
-                color = accentColor.copy(alpha = 0.15f)
-            ) {
-                Text(
-                    text = "${degree.currentCgpa} CGPA",
-                    fontSize = 15.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = accentColor,
-                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
-                )
-            }
-        }
-
-        Spacer(modifier = Modifier.height(16.dp))
-
-        // Target Selector Buttons
-        Text(
-            text = "Select Target CGPA:",
-            fontSize = 12.sp,
-            fontWeight = FontWeight.Medium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
+    GlassCard(
+        borderGradient = Brush.linearGradient(
+            listOf(accentColor.copy(alpha = 0.5f), Color(0x15FFFFFF), Color(0x05FFFFFF))
         )
-        Spacer(modifier = Modifier.height(8.dp))
-
-        LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            items(targetOptions) { target ->
-                val isSelected = degree.targetCgpa == target
-                Surface(
-                    onClick = { onTargetSelected(target) },
-                    shape = RoundedCornerShape(10.dp),
-                    color = if (isSelected) accentColor else MaterialTheme.colorScheme.surfaceVariant,
-                    border = if (isSelected) null else androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.3f))
-                ) {
-                    Text(
-                        text = "$target",
-                        fontSize = 13.sp,
-                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                        color = if (isSelected) Color.White else MaterialTheme.colorScheme.onSurface,
-                        modifier = Modifier.padding(horizontal = 14.dp, vertical = 6.dp)
-                    )
-                }
-            }
-        }
-
-        Spacer(modifier = Modifier.height(14.dp))
-
-        // Required SGPA Projection Box
-        Surface(
-            shape = RoundedCornerShape(12.dp),
-            color = if (isAchievable) StatusGreenSubtle else StatusOrangeSubtle,
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Column(modifier = Modifier.padding(12.dp)) {
-                Text(
-                    text = if (isAchievable)
-                        "To reach ${degree.targetCgpa} CGPA, you need approx $requiredSgpa SGPA over the remaining ${degree.remainingCredits} credits."
-                    else
-                        "Target of ${degree.targetCgpa} would require $requiredSgpa SGPA (> 10.0). Consider adjusting target.",
-                    fontSize = 13.sp,
-                    fontWeight = FontWeight.Medium,
-                    color = if (isAchievable) StatusGreen else StatusOrange
-                )
-            }
-        }
-    }
-}
-
-@Composable
-private fun MissedClassRecoveryCard(
-    recovery: MissedClassRecovery,
-    onToggleStep: (Int) -> Unit
-) {
-    AppleCard(
-        borderColor = if (recovery.isRecovered) StatusGreen.copy(alpha = 0.4f) else StatusOrange.copy(alpha = 0.4f)
     ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Column(modifier = Modifier.weight(1f)) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    CategoryBadge(
-                        category = if (recovery.degreeType == DegreeType.IITM) TaskCategory.IITM else TaskCategory.ITEP
-                    )
-                    Text(
-                        text = "Missed: ${recovery.missedDate}",
-                        fontSize = 11.sp,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-                Spacer(modifier = Modifier.height(4.dp))
-                Text(
-                    text = recovery.subjectName,
-                    fontSize = 15.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onSurface
-                )
-                Text(
-                    text = recovery.topic,
-                    fontSize = 12.sp,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-
-            Surface(
-                shape = RoundedCornerShape(8.dp),
-                color = if (recovery.isRecovered) StatusGreenSubtle else StatusOrangeSubtle
-            ) {
-                Text(
-                    text = if (recovery.isRecovered) "Recovered" else "${recovery.recoveryProgress}% Done",
-                    fontSize = 12.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    color = if (recovery.isRecovered) StatusGreen else StatusOrange,
-                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
-                )
-            }
-        }
-
-        Spacer(modifier = Modifier.height(14.dp))
-
-        // 4 Recovery Steps
-        Text(
-            text = "Recovery Checklist:",
-            fontSize = 11.sp,
-            fontWeight = FontWeight.SemiBold,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
-        Spacer(modifier = Modifier.height(6.dp))
-
-        val steps = listOf(
-            "1. Watch lecture recording" to recovery.watchLectureDone,
-            "2. Complete lecture notes" to recovery.notesDone,
-            "3. Attempt practice quiz" to recovery.quizDone,
-            "4. Revise formulas & concepts" to recovery.revisionDone
-        )
-
-        steps.forEachIndexed { index, (label, isDone) ->
+        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
             Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clickable { onToggleStep(index) }
-                    .padding(vertical = 4.dp),
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Checkbox(
-                    checked = isDone,
-                    onCheckedChange = { onToggleStep(index) },
-                    colors = CheckboxDefaults.colors(checkedColor = StatusGreen)
+                Column {
+                    Text(
+                        text = degree.name,
+                        style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                        color = GlassDarkTextPrimary
+                    )
+                    Text(
+                        text = "Year ${degree.currentYear} of ${degree.totalYears} • Semester ${degree.currentSemester}",
+                        fontSize = 12.sp,
+                        color = GlassDarkTextSecondary
+                    )
+                }
+
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(accentColor.copy(alpha = 0.15f))
+                        .border(1.dp, accentColor.copy(alpha = 0.4f), RoundedCornerShape(8.dp))
+                        .padding(horizontal = 8.dp, vertical = 3.dp)
+                ) {
+                    Text(
+                        text = "Active Focus",
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = accentColor
+                    )
+                }
+            }
+
+            // CGPA numbers
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.Bottom
+            ) {
+                Column {
+                    Text("CURRENT CGPA", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = GlassDarkTextTertiary)
+                    Row(verticalAlignment = Alignment.Bottom) {
+                        Text("${degree.currentCgpa}", fontSize = 28.sp, fontWeight = FontWeight.Bold, color = GlassDarkTextPrimary)
+                        Text(" / 10.0", fontSize = 13.sp, color = GlassDarkTextSecondary, modifier = Modifier.padding(bottom = 3.dp))
+                    }
+                }
+
+                Column(horizontalAlignment = Alignment.End) {
+                    Text("TARGET CGPA", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = GlassDarkTextTertiary)
+                    Text("${degree.targetCgpa}", fontSize = 24.sp, fontWeight = FontWeight.Bold, color = accentColor)
+                }
+            }
+
+            // Progress bar
+            Column {
+                LinearProgressIndicator(
+                    progress = { progress },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(8.dp)
+                        .clip(RoundedCornerShape(4.dp)),
+                    color = accentColor,
+                    trackColor = Color(0x18FFFFFF)
                 )
-                Text(
-                    text = label,
-                    fontSize = 13.sp,
-                    color = if (isDone) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurface,
-                    fontWeight = if (isDone) FontWeight.Normal else FontWeight.Medium
-                )
+                Spacer(modifier = Modifier.height(4.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Text("${degree.completedCredits} / ${degree.totalCredits} Credits Done", fontSize = 11.sp, color = GlassDarkTextSecondary)
+                    Text("Req SGPA: ~${degree.calculateRequiredSgpa(degree.targetCgpa)}", fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = accentColor)
+                }
+            }
+
+            // Target selector pills
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text("Set Target:", fontSize = 11.sp, color = GlassDarkTextTertiary)
+                targetOptions.forEach { opt ->
+                    val isSel = degree.targetCgpa == opt
+                    val pillShape = RoundedCornerShape(8.dp)
+                    Box(
+                        modifier = Modifier
+                            .clip(pillShape)
+                            .background(if (isSel) accentColor.copy(alpha = 0.25f) else Color(0x10FFFFFF))
+                            .border(1.dp, if (isSel) accentColor.copy(alpha = 0.7f) else Color(0x15FFFFFF), pillShape)
+                            .clickable { onTargetSelected(opt) }
+                            .padding(horizontal = 8.dp, vertical = 4.dp)
+                    ) {
+                        Text(
+                            text = "$opt",
+                            fontSize = 11.sp,
+                            fontWeight = if (isSel) FontWeight.Bold else FontWeight.Normal,
+                            color = if (isSel) accentColor else GlassDarkTextSecondary
+                        )
+                    }
+                }
             }
         }
     }
 }
 
 @Composable
-private fun SubjectRowCard(
-    subject: Subject,
-    onStatusChange: (SubjectStatus) -> Unit
+private fun RecoveryChip(
+    label: String,
+    isDone: Boolean,
+    onToggle: () -> Unit
 ) {
-    var expanded by remember { mutableStateOf(false) }
+    val shape = RoundedCornerShape(8.dp)
+    Box(
+        modifier = Modifier
+            .clip(shape)
+            .background(if (isDone) StatusGreen.copy(alpha = 0.2f) else Color(0x12FFFFFF))
+            .border(1.dp, if (isDone) StatusGreen.copy(alpha = 0.5f) else Color(0x18FFFFFF), shape)
+            .clickable { onToggle() }
+            .padding(horizontal = 8.dp, vertical = 4.dp)
+    ) {
+        Text(
+            text = if (isDone) "$label ✓" else label,
+            fontSize = 11.sp,
+            fontWeight = FontWeight.SemiBold,
+            color = if (isDone) StatusGreen else GlassDarkTextSecondary
+        )
+    }
+}
 
-    AppleCard(contentPadding = 14.dp) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Column(modifier = Modifier.weight(1f)) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    CategoryBadge(
-                        category = if (subject.degreeType == DegreeType.IITM) TaskCategory.IITM else TaskCategory.ITEP
-                    )
-                    Text(
-                        text = "${subject.credits} Credits • Difficulty: ${subject.difficulty}",
-                        fontSize = 11.sp,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-                Spacer(modifier = Modifier.height(4.dp))
+@Composable
+private fun DegreeFilterChip(
+    label: String,
+    isSelected: Boolean,
+    onClick: () -> Unit
+) {
+    val shape = RoundedCornerShape(8.dp)
+    Box(
+        modifier = Modifier
+            .clip(shape)
+            .background(if (isSelected) AccentBlue.copy(alpha = 0.25f) else Color(0x10FFFFFF))
+            .border(1.dp, if (isSelected) AccentBlue.copy(alpha = 0.5f) else Color(0x15FFFFFF), shape)
+            .clickable(onClick = onClick)
+            .padding(horizontal = 10.dp, vertical = 4.dp)
+    ) {
+        Text(
+            text = label,
+            fontSize = 11.sp,
+            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+            color = if (isSelected) AccentCyan else GlassDarkTextSecondary
+        )
+    }
+}
+
+@Composable
+private fun SubjectRow(subject: Subject) {
+    val (statusBg, statusBorder, statusText) = when (subject.status) {
+        SubjectStatus.COMPLETED, SubjectStatus.EXAM_READY -> Triple(StatusGreenSubtle, StatusGreen.copy(alpha = 0.4f), StatusGreen)
+        SubjectStatus.LEARNING -> Triple(StatusBlueSubtle, AccentBlue.copy(alpha = 0.4f), AccentBlue)
+        SubjectStatus.NEEDS_REVISION -> Triple(StatusOrangeSubtle, StatusOrange.copy(alpha = 0.4f), StatusOrange)
+        SubjectStatus.NOT_STARTED -> Triple(Color(0x14FFFFFF), Color(0x20FFFFFF), GlassDarkTextSecondary)
+    }
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 10.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.SpaceBetween
+    ) {
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = subject.name,
+                fontWeight = FontWeight.SemiBold,
+                fontSize = 14.sp,
+                color = GlassDarkTextPrimary
+            )
+            Spacer(modifier = Modifier.height(2.dp))
+            Text(
+                text = "${subject.credits} Credits • Difficulty: ${subject.difficulty}",
+                fontSize = 11.sp,
+                color = GlassDarkTextSecondary
+            )
+        }
+
+        Column(horizontalAlignment = Alignment.End) {
+            val shape = RoundedCornerShape(8.dp)
+            Box(
+                modifier = Modifier
+                    .clip(shape)
+                    .background(statusBg)
+                    .border(1.dp, statusBorder, shape)
+                    .padding(horizontal = 8.dp, vertical = 3.dp)
+            ) {
                 Text(
-                    text = subject.name,
-                    fontSize = 15.sp,
+                    text = subject.status.name.replace("_", " "),
+                    fontSize = 10.sp,
                     fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onSurface
+                    color = statusText
                 )
-                if (subject.nextAssignmentDate != null) {
-                    Text(
-                        text = "Next Assignment: ${subject.nextAssignmentDate}",
-                        fontSize = 12.sp,
-                        color = StatusRed,
-                        fontWeight = FontWeight.Medium
-                    )
-                } else if (subject.nextExamDate != null) {
-                    Text(
-                        text = "Next Exam: ${subject.nextExamDate}",
-                        fontSize = 12.sp,
-                        color = AccentBlue
-                    )
-                }
             }
-
-            Box {
-                Surface(
-                    onClick = { expanded = true },
-                    shape = RoundedCornerShape(8.dp),
-                    color = when (subject.status) {
-                        SubjectStatus.EXAM_READY -> StatusGreenSubtle
-                        SubjectStatus.NEEDS_REVISION -> StatusOrangeSubtle
-                        SubjectStatus.LEARNING -> StatusBlueSubtle
-                        SubjectStatus.COMPLETED -> StatusGreenSubtle
-                        SubjectStatus.NOT_STARTED -> MaterialTheme.colorScheme.surfaceVariant
-                    }
-                ) {
-                    Row(
-                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            text = subject.status.name.replace("_", " "),
-                            fontSize = 10.sp,
-                            fontWeight = FontWeight.SemiBold,
-                            color = when (subject.status) {
-                                SubjectStatus.EXAM_READY -> StatusGreen
-                                SubjectStatus.NEEDS_REVISION -> StatusOrange
-                                SubjectStatus.LEARNING -> AccentBlue
-                                SubjectStatus.COMPLETED -> StatusGreen
-                                SubjectStatus.NOT_STARTED -> MaterialTheme.colorScheme.onSurfaceVariant
-                            }
-                        )
-                        Icon(
-                            Icons.Default.ArrowDropDown,
-                            contentDescription = "Menu",
-                            modifier = Modifier.size(14.dp),
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                }
-
-                DropdownMenu(
-                    expanded = expanded,
-                    onDismissRequest = { expanded = false }
-                ) {
-                    SubjectStatus.values().forEach { status ->
-                        DropdownMenuItem(
-                            text = { Text(status.name.replace("_", " ")) },
-                            onClick = {
-                                onStatusChange(status)
-                                expanded = false
-                            }
-                        )
-                    }
-                }
-            }
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(
+                text = "${subject.currentScore.toInt()}% (Target ${subject.targetScore.toInt()}%)",
+                fontSize = 11.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = GlassDarkTextSecondary
+            )
         }
     }
 }
